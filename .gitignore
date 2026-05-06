@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.DS_Store
+
+# Local speaker lists may contain real member names.
+members.csv
+members.local.csv
+
+# Generated exports and audio bundles.
+*.zip
+*.webm
+*.docx
+session.json
+upload-this-to-ai-bots.json
+

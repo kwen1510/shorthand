@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Shorthand</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-row">
+        <div class="topbar-controls">
+          <div class="brand-mark" aria-label="Shorthand">
+            <svg class="brand-icon" aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"></path>
+              <path d="M2 6h4"></path>
+              <path d="M2 10h4"></path>
+              <path d="M2 14h4"></path>
+              <path d="M2 18h4"></path>
+              <path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.012 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"></path>
+            </svg>
+            <span>Shorthand</span>
+          </div>
+          <input id="sessionTitleInput" class="session-title-field" type="text" placeholder="Untitled meeting">
+          <select id="audioSourceSelect" class="compact-select" aria-label="Audio input"></select>
+          <button class="ghost-button" id="refreshDevicesButton" type="button">Refresh Mic</button>
+          <button class="ghost-button" id="newSessionButton" type="button">New</button>
+          <button class="ghost-button" id="pastSessionsButton" type="button">Past Meetings</button>
+          <button class="ghost-button" id="addSectionButton" type="button" disabled>Add Section</button>
+          <button id="startButton" type="button">Start</button>
+          <button class="mute-toggle-button" id="muteButton" type="button" disabled></button>
+          <button class="mute-toggle-button" id="unmuteButton" type="button" disabled></button>
+          <span class="mute-mode-label" id="muteModeLabel" hidden>Muted</span>
+          <div class="topbar-final-actions">
+            <button class="danger-button" id="stopButton" type="button" disabled>Stop</button>
+            <button class="ghost-button" id="exportButton" type="button" disabled>Export</button>
+            <button class="ghost-button" id="playbackButton" type="button" hidden>Playback</button>
+          </div>
+        </div>
+        <button class="speaker-bank-button" id="speakerBankToggle" type="button" aria-label="Open speakers">
+          <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+            <path d="M16 3.128a4 4 0 0 1 0 7.744"></path>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+          </svg>
+          <span>Speakers</span>
+        </button>
+      </div>
+
+      <div class="topbar-meta">
+        <span id="sessionStateValue">No session</span>
+        <span id="elapsedValue">00:00:00</span>
+        <span id="saveStateValue">Waiting</span>
+        <span id="storageUsageValue" class="storage-usage">Storage checking...</span>
+        <span class="live-indicator" id="recordingIndicator" hidden>
+          <span class="recording-dot"></span>
+          <span id="recordingIndicatorText">Recording locally</span>
+        </span>
+        <span id="environmentMessage" class="environment-message" hidden></span>
+      </div>
+    </header>
+
+    <div class="restore-banner" id="restoreBanner" hidden>
+      <div>
+        <strong>Interrupted session recovered.</strong>
+        <p id="restoreBannerText">
+          The last session was reopened from local storage. Recording can continue in a new audio segment.
+        </p>
+      </div>
+      <div class="banner-actions">
+        <button id="continueRecoveredButton" type="button">Continue</button>
+        <button class="ghost-button" id="dismissRestoreButton" type="button">Dismiss</button>
+      </div>
+    </div>
+
+    <main class="workspace">
+      <section class="document-page">
+        <h1 id="workspaceHeading" class="document-title">Create or load a session</h1>
+
+        <div id="emptyState" class="empty-state">
+          <p>Start a session and type directly into the page.</p>
+        </div>
+
+        <div id="sectionsContainer" class="sections-container"></div>
+      </section>
+    </main>
+
+    <aside id="speakerDrawer" class="speaker-drawer" hidden>
+      <div class="speaker-drawer-header">
+        <div>
+          <h2>Speakers</h2>
+          <p>Import a CSV or add names one by one.</p>
+        </div>
+        <button class="ghost-button" id="closeSpeakerDrawerButton" type="button">Close</button>
+      </div>
+
+      <div class="speaker-drawer-actions">
+        <button class="ghost-button" id="importSpeakersButton" type="button">Import CSV</button>
+        <input id="speakerCsvInput" type="file" accept=".csv,text/csv" hidden>
+      </div>
+
+      <form id="attendeeForm" class="speaker-form">
+        <input id="attendeeNameInput" type="text" placeholder="Add speaker name">
+        <button type="submit">Add</button>
+      </form>
+
+      <ul id="attendeeList" class="speaker-list"></ul>
+    </aside>
+
+    <div id="drawerBackdrop" class="drawer-backdrop" hidden></div>
+    <div id="playbackBackdrop" class="modal-backdrop" hidden></div>
+    <div id="sessionsBackdrop" class="modal-backdrop" hidden></div>
+    <section id="playbackModal" class="playback-modal" role="dialog" aria-modal="true" aria-labelledby="playbackTitle" hidden>
+      <div class="playback-modal-header">
+        <div>
+          <h2 id="playbackTitle">Section Playback</h2>
+        </div>
+        <button class="ghost-button" id="closePlaybackButton" type="button">Close</button>
+      </div>
+      <div id="playbackSectionList" class="playback-section-list"></div>
+    </section>
+    <section id="sessionsModal" class="sessions-modal" role="dialog" aria-modal="true" aria-labelledby="sessionsTitle" hidden>
+      <div class="sessions-modal-header">
+        <div>
+          <h2 id="sessionsTitle">Past Meetings</h2>
+          <p id="storageSummary">Storage checking...</p>
+        </div>
+        <button class="ghost-button" id="closeSessionsButton" type="button">Close</button>
+      </div>
+      <div id="recentSessions" class="recent-sessions-list"></div>
+      <div class="sessions-modal-footer">
+        <button class="danger-button" id="clearStoppedSessionsButton" type="button">Clear Stopped Meetings</button>
+      </div>
+    </section>
+    <datalist id="speakerSuggestions"></datalist>
+
+    <script src="export-utils.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
