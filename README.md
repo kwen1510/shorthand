@@ -38,11 +38,11 @@ Keep real speaker lists local. `members.csv` is intentionally ignored by Git.
 - Uses a minimal top command bar and a Word-like document page for note entry, with the large document title editable in place
 - Opens straight into a blank draft when there is no saved session yet
 - Confirms before `New` replaces a meeting that already has content
-- Records audio continuously in short MediaRecorder chunks for better crash recovery
+- Records audio continuously in short WebM/Opus MediaRecorder chunks for better crash recovery
 - Uses `Mute` instead of pause, so audio capture stops while the session clock keeps running
 - Saves and waits for an IndexedDB audio checkpoint whenever a new section is added during recording without stopping the recorder
-- Shows browser storage usage/free space in the top bar when the browser exposes storage estimates
-- Provides `Past Meetings` to inspect stored IndexedDB meetings, including sections, rows, audio clips, chunks, size, and export count
+- Tracks browser storage usage/free space in the stored meeting details when the browser exposes storage estimates
+- Provides `Past Meetings` to inspect stored IndexedDB meetings, including sections, rows, WebM audio clips, chunks, size, and export count
 - Lets you clear stopped meetings from IndexedDB after you have exported anything you need
 - Shows a playback modal after Stop, with section-by-section playback and active speaker row highlighting
 - Restores interrupted sessions after refresh or reopen
@@ -56,9 +56,11 @@ Keep real speaker lists local. `members.csv` is intentionally ignored by Git.
 - Locks a row timestamp only when the speaker is typed or deliberately selected
 - Auto-adds another blank row when you focus the current final row, so there is always an empty row ready
 - Moves from a notes cell to the next row only when ArrowDown is pressed from the last text line
+- Moves from a speaker cell back to the previous notes cell with ArrowUp when the speaker picker is not active
 - Offers `Add Section` beside `Add Row` inside the document
+- Lets you drag whole section blocks to reorder them before recording or after stopping
 - Keeps native browser undo/redo behavior in the editable fields
-- Exports `minutes.docx`, `session.json`, `upload-this-to-ai-bots.json`, and one or more audio segment files in a ZIP bundle
+- Exports `minutes.docx`, `session.json`, `upload-this-to-ai-bots.json`, and one or more `.webm` audio segment files in a ZIP bundle
 
 ## Notes
 

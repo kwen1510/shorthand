@@ -29,8 +29,13 @@
     pendingSaves: new Map(),
     currentSaveLabel: "Waiting",
     environmentReady: false,
+    micTestStream: null,
+    micTestAudioContext: null,
+    micTestAnalyser: null,
+    micTestAnimationFrame: null,
     speakerSuggestionIndex: -1,
     speakerOptionPointerActive: false,
+    draggingSectionId: null,
     startPromptTimer: null,
     playbackAudio: null,
     playbackUrl: "",
@@ -42,7 +47,10 @@
     environmentMessage: document.getElementById("environmentMessage"),
     sessionTitleInput: document.getElementById("sessionTitleInput"),
     audioSourceSelect: document.getElementById("audioSourceSelect"),
-    refreshDevicesButton: document.getElementById("refreshDevicesButton"),
+    testMicButton: document.getElementById("testMicButton"),
+    micTestPanel: document.getElementById("micTestPanel"),
+    micTestMeterFill: document.getElementById("micTestMeterFill"),
+    closeMicTestButton: document.getElementById("closeMicTestButton"),
     speakerBankToggle: document.getElementById("speakerBankToggle"),
     sessionStateValue: document.getElementById("sessionStateValue"),
     elapsedValue: document.getElementById("elapsedValue"),
@@ -62,6 +70,7 @@
     attendeeNameInput: document.getElementById("attendeeNameInput"),
     attendeeList: document.getElementById("attendeeList"),
     importSpeakersButton: document.getElementById("importSpeakersButton"),
+    markAllPresentButton: document.getElementById("markAllPresentButton"),
     speakerCsvInput: document.getElementById("speakerCsvInput"),
     speakerDrawer: document.getElementById("speakerDrawer"),
     closeSpeakerDrawerButton: document.getElementById("closeSpeakerDrawerButton"),
@@ -82,7 +91,6 @@
     continueRecoveredButton: document.getElementById("continueRecoveredButton"),
     dismissRestoreButton: document.getElementById("dismissRestoreButton"),
     workspaceHeading: document.getElementById("workspaceHeading"),
-    addSectionButton: document.getElementById("addSectionButton"),
     emptyState: document.getElementById("emptyState"),
     sectionsContainer: document.getElementById("sectionsContainer"),
     speakerSuggestions: document.getElementById("speakerSuggestions"),
@@ -113,8 +121,10 @@
   }
 
   function bindEvents() {
-    dom.refreshDevicesButton.addEventListener("click", refreshAudioInputs);
     dom.speakerBankToggle.addEventListener("click", toggleSpeakerDrawer);
+    dom.audioSourceSelect.addEventListener("change", handleAudioSourceChange);
+    dom.testMicButton.addEventListener("click", toggleMicTest);
+    dom.closeMicTestButton.addEventListener("click", stopMicTest);
     dom.newSessionButton.addEventListener("click", handleCreateNewSession);
     dom.pastSessionsButton.addEventListener("click", openSessionsModal);
     dom.startButton.addEventListener("click", handleStartButton);
@@ -123,10 +133,10 @@
     dom.stopButton.addEventListener("click", stopRecording);
     dom.exportButton.addEventListener("click", exportCurrentSession);
     dom.playbackButton.addEventListener("click", openPlaybackModal);
-    dom.addSectionButton.addEventListener("click", addSection);
     dom.attendeeForm.addEventListener("submit", handleAddAttendee);
     dom.attendeeList.addEventListener("click", handleAttendeeListClick);
     dom.importSpeakersButton.addEventListener("click", () => dom.speakerCsvInput.click());
+    dom.markAllPresentButton.addEventListener("click", markAllAttendeesPresent);
     dom.speakerCsvInput.addEventListener("change", handleSpeakerCsvImport);
     dom.closeSpeakerDrawerButton.addEventListener("click", closeSpeakerDrawer);
     dom.drawerBackdrop.addEventListener("click", closeSpeakerDrawer);
@@ -145,6 +155,10 @@
     dom.sectionsContainer.addEventListener("focusin", handleSectionFocusIn);
     dom.sectionsContainer.addEventListener("mousedown", handleSectionMouseDown);
     dom.sectionsContainer.addEventListener("click", handleSectionClick);
+    dom.sectionsContainer.addEventListener("dragstart", handleSectionDragStart);
+    dom.sectionsContainer.addEventListener("dragover", handleSectionDragOver);
+    dom.sectionsContainer.addEventListener("drop", handleSectionDrop);
+    dom.sectionsContainer.addEventListener("dragend", handleSectionDragEnd);
     dom.workspaceHeading.addEventListener("input", handleWorkspaceTitleInput);
     dom.workspaceHeading.addEventListener("blur", handleWorkspaceTitleBlur);
     dom.workspaceHeading.addEventListener("keydown", handleWorkspaceTitleKeyDown);
@@ -155,6 +169,9 @@
     window.addEventListener("pagehide", flushRecorderChunk);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     document.addEventListener("keydown", handleGlobalKeyDown);
+    navigator.mediaDevices?.addEventListener?.("devicechange", () => {
+      void refreshAudioInputs();
+    });
   }
 
   function isSupportedEnvironment() {
@@ -636,6 +653,7 @@
     }
 
     try {
+      stopMicTest();
       setBusy(true);
       setSaveState("Requesting microphone");
 
@@ -774,6 +792,11 @@
       }
       stopHeartbeat();
       state.restoreBannerSessionId = null;
+      const finalSection = state.sections[state.sections.length - 1];
+      if (finalSection && typeof finalSection.endedElapsedMs !== "number") {
+        finalSection.endedElapsedMs = getCurrentElapsedMs();
+        await putRecord("sections", finalSection);
+      }
       state.session.status = "stopped";
       state.session.endedAt = new Date().toISOString();
       state.session.lastActivityAt = state.session.endedAt;
@@ -849,7 +872,103 @@
     return navigator.mediaDevices.getUserMedia(constraints);
   }
 
-  async function addSection() {
+  function handleAudioSourceChange() {
+    if (!state.micTestStream) {
+      return;
+    }
+    void restartMicTest();
+  }
+
+  async function toggleMicTest() {
+    if (state.micTestStream) {
+      stopMicTest();
+      return;
+    }
+    await startMicTest();
+  }
+
+  async function restartMicTest() {
+    stopMicTest();
+    await startMicTest();
+  }
+
+  async function startMicTest() {
+    if (isRecorderLive()) {
+      return;
+    }
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      setSaveState("Mic test unavailable in this browser");
+      return;
+    }
+
+    try {
+      const stream = await requestAudioStream();
+      state.micTestStream = stream;
+      const audioContext = new AudioContextClass();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+      source.connect(analyser);
+
+      state.micTestAudioContext = audioContext;
+      state.micTestAnalyser = analyser;
+      dom.micTestPanel.hidden = false;
+      dom.testMicButton.textContent = "Stop Test";
+      renderButtons();
+      updateMicTestMeter();
+    } catch (error) {
+      stopMicTest();
+      console.error(error);
+      setSaveState(`Mic test failed: ${error.message}`);
+    }
+  }
+
+  function updateMicTestMeter() {
+    if (!state.micTestAnalyser || !dom.micTestMeterFill) {
+      return;
+    }
+
+    const samples = new Uint8Array(state.micTestAnalyser.fftSize);
+    state.micTestAnalyser.getByteTimeDomainData(samples);
+    let peak = 0;
+    samples.forEach((sample) => {
+      peak = Math.max(peak, Math.abs(sample - 128));
+    });
+    const level = Math.min(100, Math.round((peak / 64) * 100));
+    dom.micTestMeterFill.style.width = `${level}%`;
+    state.micTestAnimationFrame = window.requestAnimationFrame(updateMicTestMeter);
+  }
+
+  function stopMicTest() {
+    if (state.micTestAnimationFrame) {
+      window.cancelAnimationFrame(state.micTestAnimationFrame);
+      state.micTestAnimationFrame = null;
+    }
+    if (state.micTestStream) {
+      state.micTestStream.getTracks().forEach((track) => track.stop());
+      state.micTestStream = null;
+    }
+    if (state.micTestAudioContext) {
+      void state.micTestAudioContext.close().catch(() => {});
+      state.micTestAudioContext = null;
+    }
+    state.micTestAnalyser = null;
+    if (dom.micTestMeterFill) {
+      dom.micTestMeterFill.style.width = "0%";
+    }
+    if (dom.micTestPanel) {
+      dom.micTestPanel.hidden = true;
+    }
+    if (dom.testMicButton) {
+      dom.testMicButton.textContent = "Test Mic";
+    }
+    renderButtons();
+  }
+
+  async function addSection(options = {}) {
     const session = await ensureCurrentSession();
     if (!session) {
       return;
@@ -880,7 +999,9 @@
     await putRecord("rows", firstRow);
     await touchSession();
     renderSections();
-    focusFirstEditableRow(newSection.id);
+    if (options.focus !== false && !isMinutesEntryLocked()) {
+      focusFirstEditableRow(newSection.id);
+    }
   }
 
   async function addRow(sectionId) {
@@ -1219,6 +1340,30 @@
     renderAttendees();
   }
 
+  async function markAllAttendeesPresent() {
+    if (state.attendees.length === 0) {
+      setSaveState("Add speakers before marking attendance");
+      return;
+    }
+
+    const session = await ensureCurrentSession();
+    if (!session) {
+      return;
+    }
+
+    ensureSessionAttendance(session);
+    state.attendees.forEach((attendee) => {
+      if (!session.attendeeIds.includes(attendee.id)) {
+        session.attendeeIds.push(attendee.id);
+      }
+      session.attendanceByAttendeeId[attendee.id] = "present";
+    });
+
+    await touchSession();
+    renderAttendees();
+    setSaveState("Marked all speakers present");
+  }
+
   async function setAttendanceStatus(attendeeId, status) {
     if (!["present", "absent"].includes(status)) {
       return;
@@ -1493,16 +1638,128 @@
     }, 500);
   }
 
+  function handleSectionDragStart(event) {
+    const handle = event.target.closest("[data-section-drag-handle]");
+    if (!handle || !canReorderSections()) {
+      event.preventDefault();
+      return;
+    }
+
+    state.draggingSectionId = handle.dataset.sectionId;
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", state.draggingSectionId);
+    const card = getSectionCard(state.draggingSectionId);
+    card?.classList.add("section-card-dragging");
+  }
+
+  function handleSectionDragOver(event) {
+    if (!state.draggingSectionId) {
+      return;
+    }
+    const targetCard = getClosestSectionCard(event.target);
+    if (!targetCard || targetCard.dataset.sectionId === state.draggingSectionId) {
+      clearSectionDropIndicators();
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    const position = getSectionDropPosition(targetCard, event.clientY);
+    clearSectionDropIndicators();
+    targetCard.classList.add(position === "before" ? "section-drop-before" : "section-drop-after");
+  }
+
+  function handleSectionDrop(event) {
+    if (!state.draggingSectionId) {
+      return;
+    }
+    const targetCard = getClosestSectionCard(event.target);
+    if (!targetCard || targetCard.dataset.sectionId === state.draggingSectionId) {
+      clearSectionDragState();
+      return;
+    }
+
+    event.preventDefault();
+    const position = getSectionDropPosition(targetCard, event.clientY);
+    const draggedSectionId = state.draggingSectionId;
+    const targetSectionId = targetCard.dataset.sectionId;
+    clearSectionDragState();
+    void reorderSection(draggedSectionId, targetSectionId, position);
+  }
+
+  function handleSectionDragEnd() {
+    clearSectionDragState();
+  }
+
+  function getClosestSectionCard(target) {
+    return target instanceof Element ? target.closest(".section-card[data-section-id]") : null;
+  }
+
+  function getSectionCard(sectionId) {
+    return dom.sectionsContainer.querySelector(`.section-card[data-section-id="${cssEscape(sectionId)}"]`);
+  }
+
+  function getSectionDropPosition(card, clientY) {
+    const rect = card.getBoundingClientRect();
+    return clientY < rect.top + (rect.height / 2) ? "before" : "after";
+  }
+
+  function clearSectionDragState() {
+    state.draggingSectionId = null;
+    dom.sectionsContainer.querySelectorAll(".section-card-dragging").forEach((card) => {
+      card.classList.remove("section-card-dragging");
+    });
+    clearSectionDropIndicators();
+  }
+
+  function clearSectionDropIndicators() {
+    dom.sectionsContainer.querySelectorAll(".section-drop-before, .section-drop-after").forEach((card) => {
+      card.classList.remove("section-drop-before", "section-drop-after");
+    });
+  }
+
+  async function reorderSection(draggedSectionId, targetSectionId, position) {
+    if (!canReorderSections() || draggedSectionId === targetSectionId) {
+      return;
+    }
+    const fromIndex = state.sections.findIndex((section) => section.id === draggedSectionId);
+    const targetIndex = state.sections.findIndex((section) => section.id === targetSectionId);
+    if (fromIndex < 0 || targetIndex < 0) {
+      return;
+    }
+
+    const [draggedSection] = state.sections.splice(fromIndex, 1);
+    let insertIndex = targetIndex + (position === "after" ? 1 : 0);
+    if (fromIndex < insertIndex) {
+      insertIndex -= 1;
+    }
+    state.sections.splice(insertIndex, 0, draggedSection);
+
+    await persistSectionOrder();
+    renderSections();
+    renderButtons();
+    if (!dom.playbackModal.hidden) {
+      renderPlaybackModal();
+    }
+    setSaveState("Reordered sections");
+  }
+
+  async function persistSectionOrder() {
+    for (const [index, section] of state.sections.entries()) {
+      if (section.order === index) {
+        continue;
+      }
+      section.order = index;
+      await putRecord("sections", section);
+    }
+    await touchSession();
+  }
+
   function handleSectionFocusIn(event) {
     const target = event.target;
     const sectionId = target.dataset.sectionId;
     const rowId = target.dataset.rowId;
     const field = target.dataset.field;
-
-    if (field === "section-title") {
-      moveCursorToEnd(target);
-      return;
-    }
 
     if (!sectionId || !rowId || !field) {
       return;
@@ -1541,8 +1798,8 @@
     if (!section) {
       return;
     }
-    section.title = input.value.trim();
-    input.value = section.title;
+    section.title = normalizeSectionTitleValue(section, input.value);
+    input.value = getSectionDisplayTitle(section);
     await putRecord("sections", section);
     await touchSession();
   }
@@ -1579,6 +1836,13 @@
       return;
     }
 
+    if (event.key === "ArrowUp" && shouldMoveSpeakerToPreviousNotes(target, options, optionButtons)) {
+      event.preventDefault();
+      hideSpeakerOptions();
+      focusPreviousRowNotes(target.dataset.sectionId, target.dataset.rowId);
+      return;
+    }
+
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       if (optionButtons.length === 0) {
         return;
@@ -1606,6 +1870,18 @@
     }
   }
 
+  function shouldMoveSpeakerToPreviousNotes(input, options, optionButtons) {
+    const dropdownIsOpen = options && !options.hidden && optionButtons.length > 0;
+    const dropdownIsActive = dropdownIsOpen && (Boolean(input.value.trim()) || state.speakerSuggestionIndex >= 0);
+    if (dropdownIsActive) {
+      return false;
+    }
+    if (!input.value.trim()) {
+      return true;
+    }
+    return input.selectionStart === 0 && input.selectionEnd === 0;
+  }
+
   function handleNotesKeyDown(event, textarea) {
     if (event.key !== "ArrowDown") {
       return;
@@ -1619,14 +1895,11 @@
   }
 
   function handleSectionTitleKeyDown(event, input) {
-    if (!isPrintableKey(event)) {
+    if (event.key !== "Enter") {
       return;
     }
-    const valueLength = input.value.length;
-    const wholeTitleSelected = input.selectionStart === 0 && input.selectionEnd === valueLength && valueLength > 0;
-    if (wholeTitleSelected) {
-      input.setSelectionRange(valueLength, valueLength);
-    }
+    event.preventDefault();
+    input.blur();
   }
 
   function moveCursorToEnd(input) {
@@ -1637,10 +1910,6 @@
       const valueLength = input.value.length;
       input.setSelectionRange(valueLength, valueLength);
     });
-  }
-
-  function isPrintableKey(event) {
-    return event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey;
   }
 
   function handleSectionInput(event) {
@@ -1656,9 +1925,9 @@
       }
       section.title = target.value;
       scheduleSave(`section-${section.id}`, async () => {
-        section.title = section.title.trim();
+        section.title = normalizeSectionTitleValue(section, section.title);
         if (document.activeElement !== target) {
-          target.value = section.title;
+          target.value = getSectionDisplayTitle(section);
         }
         await putRecord("sections", section);
         await touchSession();
@@ -1736,6 +2005,24 @@
 
     const nextSpeaker = findRowField(sectionId, nextRow.id, "speaker");
     nextSpeaker?.focus();
+  }
+
+  function focusPreviousRowNotes(sectionId, rowId) {
+    const speakerFields = [...dom.sectionsContainer.querySelectorAll('[data-field="speaker"]')];
+    const currentIndex = speakerFields.findIndex((field) => {
+      return field.dataset.sectionId === sectionId && field.dataset.rowId === rowId;
+    });
+    const previousSpeaker = speakerFields[currentIndex - 1];
+    if (!previousSpeaker) {
+      return;
+    }
+
+    const previousNotes = findRowField(previousSpeaker.dataset.sectionId, previousSpeaker.dataset.rowId, "notes");
+    if (!previousNotes) {
+      return;
+    }
+    previousNotes.focus();
+    moveCursorToEnd(previousNotes);
   }
 
   function appendRowToDom(sectionId, row) {
@@ -1839,7 +2126,9 @@
   }
 
   async function refreshAudioInputs() {
-    const devices = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+    const devices = navigator.mediaDevices?.enumerateDevices
+      ? await navigator.mediaDevices.enumerateDevices().catch(() => [])
+      : [];
     const audioInputs = devices.filter((device) => device.kind === "audioinput");
     const selectedValue = dom.audioSourceSelect.value;
     dom.audioSourceSelect.innerHTML = "";
@@ -2016,7 +2305,7 @@
     const sessionState = getDerivedSessionState();
     dom.sessionStateValue.textContent = sessionState.label;
     dom.elapsedValue.textContent = formatElapsed(getCurrentElapsedMs());
-    dom.saveStateValue.textContent = state.currentSaveLabel;
+    renderSaveState();
     dom.recordingIndicator.hidden = !sessionState.isRecording;
     dom.recordingIndicatorText.textContent = sessionState.isRecording ? "Recording locally" : "Not recording";
     dom.emptyState.hidden = Boolean(state.session);
@@ -2031,8 +2320,10 @@
     const canStartFresh = !hasSession || state.session.status === "draft";
     const canUnmute = hasSession && state.session.status === "muted" && !isRecorderLive();
     const canStop = hasSession && state.session.status !== "stopped";
+    const micTestActive = Boolean(state.micTestStream);
 
-    dom.addSectionButton.disabled = state.isBusy;
+    dom.testMicButton.disabled = state.isBusy || isRecorderLive();
+    dom.testMicButton.textContent = micTestActive ? "Stop Test" : "Test Mic";
     dom.pastSessionsButton.disabled = state.isBusy;
     dom.startButton.disabled = state.isBusy || isRecorderLive() || (!canContinueRecovered && !canStartFresh);
     dom.startButton.textContent = canContinueRecovered ? "Continue" : "Start";
@@ -2050,6 +2341,7 @@
     dom.stopButton.disabled = state.isBusy || !canStop;
     dom.exportButton.disabled = state.isBusy || !hasSession || state.session.status !== "stopped";
     dom.clearStoppedSessionsButton.disabled = state.isBusy || !state.recentSessions.some((session) => session.status === "stopped");
+    dom.markAllPresentButton.disabled = state.isBusy || state.attendees.length === 0;
     dom.muteButton.innerHTML = `${getMicOffIconMarkup()}<span>Mute</span>`;
     dom.unmuteButton.innerHTML = `${getMicIconMarkup()}<span>Unmute</span>`;
   }
@@ -2077,6 +2369,19 @@
     `;
   }
 
+  function getGripIconMarkup() {
+    return `
+      <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
+        <circle cx="9" cy="6" r="1"></circle>
+        <circle cx="15" cy="6" r="1"></circle>
+        <circle cx="9" cy="12" r="1"></circle>
+        <circle cx="15" cy="12" r="1"></circle>
+        <circle cx="9" cy="18" r="1"></circle>
+        <circle cx="15" cy="18" r="1"></circle>
+      </svg>
+    `;
+  }
+
   function getUsersIconMarkup(className = "button-icon") {
     return `
       <svg class="${escapeAttribute(className)}" aria-hidden="true" viewBox="0 0 24 24">
@@ -2092,6 +2397,7 @@
     dom.attendeeList.innerHTML = "";
     dom.speakerSuggestions.innerHTML = "";
     const sortedAttendees = getSortedAttendeesForDisplay();
+    dom.markAllPresentButton.disabled = state.isBusy || sortedAttendees.length === 0;
     if (sortedAttendees.length === 0) {
       const item = document.createElement("li");
       item.className = "speaker-list-empty";
@@ -2200,7 +2506,7 @@
       details.textContent = [
         `${summary.sectionCount || 0} sections`,
         `${summary.rowCount || 0} rows`,
-        `${summary.audioSegmentCount || 0} audio clips`,
+        `${summary.audioSegmentCount || 0} WebM audio clips`,
         `${summary.audioChunkCount || 0} chunks`,
         formatBytes(summary.audioBytes || 0),
         `${summary.exportCount || 0} exports`,
@@ -2246,6 +2552,7 @@
     if (!state.session) {
       return;
     }
+    const canDragSections = canReorderSections();
 
     if (isMinutesEntryLocked()) {
       const promptMarkup = speakerBankIsEmpty()
@@ -2269,10 +2576,23 @@
       const rows = state.rowsBySection.get(section.id) || [];
       const article = document.createElement("article");
       article.className = "section-card";
+      article.dataset.sectionId = section.id;
       article.innerHTML = `
         <div class="section-topline">
+          <button
+            class="section-drag-handle"
+            type="button"
+            draggable="${canDragSections ? "true" : "false"}"
+            data-section-drag-handle
+            data-section-id="${escapeAttribute(section.id)}"
+            aria-label="Move ${escapeAttribute(getDefaultSectionTitle(section))}"
+            title="Move section"
+            ${canDragSections ? "" : "disabled"}
+          >
+            ${getGripIconMarkup()}
+          </button>
           <span class="section-kicker">Section ${section.order + 1}</span>
-          <input class="section-title-input" data-field="section-title" data-section-id="${section.id}" value="${escapeAttribute(getSectionTitleInputValue(section))}" placeholder="${escapeAttribute(getDefaultSectionTitle(section))}" aria-label="Section title">
+          <input class="section-title-input" data-field="section-title" data-section-id="${section.id}" value="${escapeAttribute(getSectionDisplayTitle(section))}" aria-label="Section title">
         </div>
         <div class="section-guide">
           <span>Speaker</span>
@@ -2570,9 +2890,9 @@
     const section = state.sections[sectionIndex];
     const nextSection = state.sections[sectionIndex + 1];
     const startMs = getSectionStartElapsedMs(section, sectionIndex);
-    const endMs = nextSection
-      ? getSectionStartElapsedMs(nextSection, sectionIndex + 1)
-      : getCurrentElapsedMs();
+    const endMs = typeof section.endedElapsedMs === "number"
+      ? section.endedElapsedMs
+      : (nextSection ? getSectionStartElapsedMs(nextSection, sectionIndex + 1) : getCurrentElapsedMs());
     return {
       startSeconds: Math.max(0, startMs / 1000),
       endSeconds: Math.max(startMs / 1000, endMs / 1000),
@@ -2603,7 +2923,17 @@
 
   function setSaveState(label) {
     state.currentSaveLabel = label;
+    renderSaveState();
+  }
+
+  function renderSaveState() {
+    const label = state.currentSaveLabel || "";
     dom.saveStateValue.textContent = label;
+    dom.saveStateValue.hidden = !isActionableStatusLabel(label);
+  }
+
+  function isActionableStatusLabel(label) {
+    return /(failed|failure|error|unavailable|unsupported|upload|select|click|run this app|initialization|speaker.*required|add speakers|mic test)/i.test(label || "");
   }
 
   function setBusy(isBusy) {
@@ -2613,6 +2943,16 @@
 
   function isMinutesEntryLocked() {
     return Boolean(state.session && !state.session.startedAt);
+  }
+
+  function canReorderSections() {
+    if (!state.session || state.sections.length < 2 || state.isBusy || isRecorderLive()) {
+      return false;
+    }
+    if (state.playbackAudio && !state.playbackAudio.paused) {
+      return false;
+    }
+    return state.session.status === "draft" || state.session.status === "stopped";
   }
 
   function currentSessionHasData() {
@@ -2656,6 +2996,11 @@
 
   function getDefaultSectionTitle(section) {
     return `Section ${section.order + 1}`;
+  }
+
+  function normalizeSectionTitleValue(section, value) {
+    const title = String(value || "").trim();
+    return title === getDefaultSectionTitle(section) ? "" : title;
   }
 
   function getSectionTitleInputValue(section) {
@@ -3106,5 +3451,12 @@
 
   function escapeAttribute(value) {
     return escapeHtml(value);
+  }
+
+  function cssEscape(value) {
+    if (window.CSS?.escape) {
+      return window.CSS.escape(String(value || ""));
+    }
+    return String(value || "").replace(/["\\]/g, "\\$&");
   }
 }());

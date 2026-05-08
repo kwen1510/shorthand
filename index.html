@@ -23,10 +23,9 @@
           </div>
           <input id="sessionTitleInput" class="session-title-field" type="text" placeholder="Untitled meeting">
           <select id="audioSourceSelect" class="compact-select" aria-label="Audio input"></select>
-          <button class="ghost-button" id="refreshDevicesButton" type="button">Refresh Mic</button>
+          <button class="ghost-button" id="testMicButton" type="button">Test Mic</button>
           <button class="ghost-button" id="newSessionButton" type="button">New</button>
           <button class="ghost-button" id="pastSessionsButton" type="button">Past Meetings</button>
-          <button class="ghost-button" id="addSectionButton" type="button" disabled>Add Section</button>
           <button id="startButton" type="button">Start</button>
           <button class="mute-toggle-button" id="muteButton" type="button" disabled></button>
           <button class="mute-toggle-button" id="unmuteButton" type="button" disabled></button>
@@ -48,11 +47,19 @@
         </button>
       </div>
 
+      <div id="micTestPanel" class="mic-test-panel" hidden>
+        <span>Mic level</span>
+        <div class="mic-test-meter" aria-hidden="true">
+          <span id="micTestMeterFill"></span>
+        </div>
+        <button class="ghost-button" id="closeMicTestButton" type="button">Close</button>
+      </div>
+
       <div class="topbar-meta">
         <span id="sessionStateValue">No session</span>
         <span id="elapsedValue">00:00:00</span>
-        <span id="saveStateValue">Waiting</span>
-        <span id="storageUsageValue" class="storage-usage">Storage checking...</span>
+        <span id="saveStateValue" hidden></span>
+        <span id="storageUsageValue" class="storage-usage" hidden>Storage checking...</span>
         <span class="live-indicator" id="recordingIndicator" hidden>
           <span class="recording-dot"></span>
           <span id="recordingIndicatorText">Recording locally</span>
@@ -97,6 +104,7 @@
 
       <div class="speaker-drawer-actions">
         <button class="ghost-button" id="importSpeakersButton" type="button">Import CSV</button>
+        <button class="ghost-button" id="markAllPresentButton" type="button">Mark all Present</button>
         <input id="speakerCsvInput" type="file" accept=".csv,text/csv" hidden>
       </div>
 

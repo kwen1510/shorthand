@@ -187,6 +187,12 @@ select:focus {
   align-items: center;
 }
 
+.topbar-controls > button,
+.topbar-final-actions > button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .brand-mark {
   display: inline-flex;
   align-items: center;
@@ -209,10 +215,10 @@ select:focus {
 }
 
 .session-title-field {
-  flex: 0 1 10rem;
-  width: 10rem;
-  min-width: 8rem;
-  max-width: 14rem;
+  flex: 1 1 clamp(16rem, 28vw, 32rem);
+  width: clamp(16rem, 28vw, 32rem);
+  min-width: 14rem;
+  max-width: 32rem;
   border: 1px solid transparent;
   background: transparent;
   font-family: var(--font-doc);
@@ -227,8 +233,10 @@ select:focus {
 }
 
 .compact-select {
-  width: auto;
+  flex: 0 1 24rem;
+  width: min(24rem, 100%);
   min-width: 10.5rem;
+  max-width: 28rem;
 }
 
 .topbar-meta {
@@ -239,6 +247,33 @@ select:focus {
   margin-top: 0.55rem;
   color: var(--muted);
   font-size: 0.86rem;
+}
+
+.mic-test-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 0.6rem;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.mic-test-meter {
+  width: min(18rem, 34vw);
+  height: 0.55rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #eee9e2;
+}
+
+.mic-test-meter span {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 80ms linear;
 }
 
 .live-indicator {
@@ -355,12 +390,62 @@ select:focus {
   gap: 0.8rem;
 }
 
+.section-card-dragging {
+  opacity: 0.48;
+}
+
+.section-drop-before,
+.section-drop-after {
+  position: relative;
+}
+
+.section-drop-before::before,
+.section-drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.section-drop-before::before {
+  top: -0.85rem;
+}
+
+.section-drop-after::after {
+  bottom: -0.85rem;
+}
+
 .section-topline {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.8rem;
   padding-top: 0.2rem;
+}
+
+.section-drag-handle {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-color: var(--line);
+  background: #fff;
+  color: var(--muted);
+  padding: 0;
+  cursor: grab;
+}
+
+.section-drag-handle:active {
+  cursor: grabbing;
+}
+
+.section-drag-handle:disabled {
+  cursor: not-allowed;
 }
 
 .section-kicker {
@@ -983,6 +1068,15 @@ select:focus {
   .topbar-controls,
   .topbar-final-actions {
     align-items: stretch;
+  }
+
+  .mic-test-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mic-test-meter {
+    width: 100%;
   }
 
   .topbar-row {
