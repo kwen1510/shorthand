@@ -75,6 +75,9 @@
     speakerDrawer: document.getElementById("speakerDrawer"),
     closeSpeakerDrawerButton: document.getElementById("closeSpeakerDrawerButton"),
     drawerBackdrop: document.getElementById("drawerBackdrop"),
+    mutedBackdrop: document.getElementById("mutedBackdrop"),
+    mutedModal: document.getElementById("mutedModal"),
+    mutedModalUnmuteButton: document.getElementById("mutedModalUnmuteButton"),
     playbackBackdrop: document.getElementById("playbackBackdrop"),
     playbackModal: document.getElementById("playbackModal"),
     closePlaybackButton: document.getElementById("closePlaybackButton"),
@@ -140,6 +143,8 @@
     dom.speakerCsvInput.addEventListener("change", handleSpeakerCsvImport);
     dom.closeSpeakerDrawerButton.addEventListener("click", closeSpeakerDrawer);
     dom.drawerBackdrop.addEventListener("click", closeSpeakerDrawer);
+    dom.mutedBackdrop.addEventListener("click", focusMutedModalAction);
+    dom.mutedModalUnmuteButton.addEventListener("click", unmuteRecording);
     dom.closePlaybackButton.addEventListener("click", closePlaybackModal);
     dom.playbackBackdrop.addEventListener("click", closePlaybackModal);
     dom.closeSessionsButton.addEventListener("click", closeSessionsModal);
@@ -2344,6 +2349,32 @@
     dom.markAllPresentButton.disabled = state.isBusy || state.attendees.length === 0;
     dom.muteButton.innerHTML = `${getMicOffIconMarkup()}<span>Mute</span>`;
     dom.unmuteButton.innerHTML = `${getMicIconMarkup()}<span>Unmute</span>`;
+    dom.mutedModalUnmuteButton.innerHTML = `${getMicIconMarkup()}<span>Unmute recording</span>`;
+    renderMutedModal(canUnmute);
+  }
+
+  function renderMutedModal(canUnmute) {
+    const shouldShow = Boolean(state.session && state.session.status === "muted");
+    dom.mutedBackdrop.hidden = !shouldShow;
+    dom.mutedModal.hidden = !shouldShow;
+    if (!shouldShow) {
+      return;
+    }
+
+    dom.mutedModalUnmuteButton.disabled = state.isBusy || !canUnmute;
+    if (!dom.mutedModal.contains(document.activeElement)) {
+      window.requestAnimationFrame(focusMutedModalAction);
+    }
+  }
+
+  function focusMutedModalAction() {
+    if (dom.mutedModal.hidden) {
+      return;
+    }
+    const focusTarget = dom.mutedModalUnmuteButton.disabled
+      ? dom.mutedModal
+      : dom.mutedModalUnmuteButton;
+    focusTarget.focus({ preventScroll: true });
   }
 
   function getMicIconMarkup() {
@@ -2692,6 +2723,13 @@
   }
 
   function handleGlobalKeyDown(event) {
+    if (!dom.mutedModal.hidden) {
+      if (event.key === "Escape" || event.key === "Tab") {
+        event.preventDefault();
+        focusMutedModalAction();
+      }
+      return;
+    }
     if (event.key === "Escape" && !dom.playbackModal.hidden) {
       closePlaybackModal();
       return;

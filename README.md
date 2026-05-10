@@ -40,6 +40,7 @@ Keep real speaker lists local. `members.csv` is intentionally ignored by Git.
 - Confirms before `New` replaces a meeting that already has content
 - Records audio continuously in short WebM/Opus MediaRecorder chunks for better crash recovery
 - Uses `Mute` instead of pause, so audio capture stops while the session clock keeps running
+- Shows a non-dismissible muted reminder with a large Unmute action whenever recording is muted
 - Saves and waits for an IndexedDB audio checkpoint whenever a new section is added during recording without stopping the recorder
 - Tracks browser storage usage/free space in the stored meeting details when the browser exposes storage estimates
 - Provides `Past Meetings` to inspect stored IndexedDB meetings, including sections, rows, WebM audio clips, chunks, size, and export count

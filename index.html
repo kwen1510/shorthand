@@ -117,6 +117,24 @@
     </aside>
 
     <div id="drawerBackdrop" class="drawer-backdrop" hidden></div>
+    <div id="mutedBackdrop" class="modal-backdrop muted-modal-backdrop" hidden></div>
+    <section id="mutedModal" class="muted-modal" role="alertdialog" aria-modal="true" aria-labelledby="mutedModalTitle" aria-describedby="mutedModalDescription" tabindex="-1" hidden>
+      <div class="muted-modal-icon" aria-hidden="true">
+        <svg class="button-icon" viewBox="0 0 24 24">
+          <path d="M12 2a3 3 0 0 0-3 3v5"></path>
+          <path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"></path>
+          <path d="M19 10v2a7 7 0 0 1-.78 3.22"></path>
+          <path d="M5 10v2a7 7 0 0 0 11.9 4.95"></path>
+          <line x1="12" x2="12" y1="19" y2="22"></line>
+          <line x1="2" x2="22" y1="2" y2="22"></line>
+        </svg>
+      </div>
+      <div>
+        <h2 id="mutedModalTitle">Recording is muted</h2>
+        <p id="mutedModalDescription">No microphone audio is being saved right now. This reminder stays open until you unmute.</p>
+      </div>
+      <button id="mutedModalUnmuteButton" class="muted-modal-unmute-button" type="button"></button>
+    </section>
     <div id="playbackBackdrop" class="modal-backdrop" hidden></div>
     <div id="sessionsBackdrop" class="modal-backdrop" hidden></div>
     <section id="playbackModal" class="playback-modal" role="dialog" aria-modal="true" aria-labelledby="playbackTitle" hidden>

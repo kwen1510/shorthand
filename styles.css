@@ -833,6 +833,82 @@ select:focus {
   background: rgba(34, 27, 21, 0.24);
 }
 
+.muted-modal-backdrop {
+  z-index: 55;
+  background: rgba(34, 27, 21, 0.42);
+}
+
+.muted-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 60;
+  display: grid;
+  width: min(92vw, 34rem);
+  transform: translate(-50%, -50%);
+  gap: 1.1rem;
+  border: 1px solid #d3a177;
+  border-radius: 0.5rem;
+  background: #fff;
+  box-shadow: 0 28px 70px rgba(33, 24, 17, 0.3);
+  padding: 1.35rem;
+  text-align: center;
+}
+
+.muted-modal:focus {
+  outline: none;
+}
+
+.muted-modal-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  background: #fff2e5;
+  color: #b65d18;
+}
+
+.muted-modal-icon .button-icon {
+  width: 1.65rem;
+  height: 1.65rem;
+}
+
+.muted-modal h2,
+.muted-modal p {
+  margin: 0;
+}
+
+.muted-modal h2 {
+  font-size: 1.45rem;
+}
+
+.muted-modal p {
+  margin-top: 0.35rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.muted-modal-unmute-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 4.2rem;
+  border-color: #174c47;
+  background: var(--accent);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.muted-modal-unmute-button .button-icon {
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
 .playback-modal {
   position: fixed;
   inset: 7vh max(1rem, calc((100vw - 980px) / 2));
