@@ -383,14 +383,15 @@
   }
 
   async function createBundleZip(files, password) {
+    if (!password) {
+      return new Blob([createZip(files)], { type: "application/zip" });
+    }
     if (!window.zip) {
       throw new Error("ZIP encryption library is unavailable.");
     }
 
     window.zip.configure({ useWebWorkers: false });
-    const encryptionOptions = password
-      ? { password, encryptionStrength: 3 }
-      : {};
+    const encryptionOptions = { password, encryptionStrength: 3 };
     const writer = new window.zip.ZipWriter(
       new window.zip.BlobWriter("application/zip"),
       encryptionOptions,

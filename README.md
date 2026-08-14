@@ -64,6 +64,7 @@ Keep real speaker lists local. `members.csv` is intentionally ignored by Git.
 - Keeps native browser undo/redo behavior in the editable fields
 - Exports `minutes.docx`, `session.json`, `upload-this-to-ai-bots.json`, and one or more `.webm` audio segment files in a ZIP bundle
 - Requires either matching passwords for a local AES-256 ZIP or an explicit unprotected-export choice
+- Keeps unprotected exports on the original built-in ZIP path, so they still work if the optional encryption library is unavailable
 
 ## Notes
 
