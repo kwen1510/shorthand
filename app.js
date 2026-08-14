@@ -41,6 +41,7 @@
     playbackUrl: "",
     playbackSectionId: null,
     playbackStopAtSeconds: null,
+    attendanceConfirmationResolver: null,
   };
 
   const dom = {
@@ -66,6 +67,8 @@
     playbackButton: document.getElementById("playbackButton"),
     newSessionButton: document.getElementById("newSessionButton"),
     pastSessionsButton: document.getElementById("pastSessionsButton"),
+    addSectionButton: document.getElementById("addSectionButton"),
+    importAgendaButton: document.getElementById("importAgendaButton"),
     attendeeForm: document.getElementById("attendeeForm"),
     attendeeNameInput: document.getElementById("attendeeNameInput"),
     attendeeList: document.getElementById("attendeeList"),
@@ -97,6 +100,22 @@
     emptyState: document.getElementById("emptyState"),
     sectionsContainer: document.getElementById("sectionsContainer"),
     speakerSuggestions: document.getElementById("speakerSuggestions"),
+    agendaBackdrop: document.getElementById("agendaBackdrop"),
+    agendaModal: document.getElementById("agendaModal"),
+    agendaTextarea: document.getElementById("agendaTextarea"),
+    agendaImportStatus: document.getElementById("agendaImportStatus"),
+    agendaClosePrompt: document.getElementById("agendaClosePrompt"),
+    closeAgendaButton: document.getElementById("closeAgendaButton"),
+    saveAgendaBeforeCloseButton: document.getElementById("saveAgendaBeforeCloseButton"),
+    discardAgendaButton: document.getElementById("discardAgendaButton"),
+    keepEditingAgendaButton: document.getElementById("keepEditingAgendaButton"),
+    doneAgendaButton: document.getElementById("doneAgendaButton"),
+    attendanceBackdrop: document.getElementById("attendanceBackdrop"),
+    attendanceModal: document.getElementById("attendanceModal"),
+    attendanceCountInput: document.getElementById("attendanceCountInput"),
+    attendanceCountHint: document.getElementById("attendanceCountHint"),
+    cancelStopButton: document.getElementById("cancelStopButton"),
+    confirmStopButton: document.getElementById("confirmStopButton"),
   };
 
   window.addEventListener("load", initializeApp);
@@ -130,10 +149,12 @@
     dom.closeMicTestButton.addEventListener("click", stopMicTest);
     dom.newSessionButton.addEventListener("click", handleCreateNewSession);
     dom.pastSessionsButton.addEventListener("click", openSessionsModal);
+    dom.addSectionButton.addEventListener("click", () => void addSection());
+    dom.importAgendaButton.addEventListener("click", openAgendaModal);
     dom.startButton.addEventListener("click", handleStartButton);
     dom.muteButton.addEventListener("click", muteRecording);
     dom.unmuteButton.addEventListener("click", unmuteRecording);
-    dom.stopButton.addEventListener("click", stopRecording);
+    dom.stopButton.addEventListener("click", requestStopRecording);
     dom.exportButton.addEventListener("click", exportCurrentSession);
     dom.playbackButton.addEventListener("click", openPlaybackModal);
     dom.attendeeForm.addEventListener("submit", handleAddAttendee);
@@ -149,6 +170,16 @@
     dom.playbackBackdrop.addEventListener("click", closePlaybackModal);
     dom.closeSessionsButton.addEventListener("click", closeSessionsModal);
     dom.sessionsBackdrop.addEventListener("click", closeSessionsModal);
+    dom.agendaBackdrop.addEventListener("click", focusAgendaModal);
+    dom.closeAgendaButton.addEventListener("click", requestCloseAgendaModal);
+    dom.agendaTextarea.addEventListener("input", updateAgendaImportStatus);
+    dom.saveAgendaBeforeCloseButton.addEventListener("click", () => void importAgendaSections());
+    dom.discardAgendaButton.addEventListener("click", closeAgendaModal);
+    dom.keepEditingAgendaButton.addEventListener("click", keepEditingAgenda);
+    dom.doneAgendaButton.addEventListener("click", () => void importAgendaSections());
+    dom.attendanceBackdrop.addEventListener("click", focusAttendanceModal);
+    dom.cancelStopButton.addEventListener("click", cancelAttendanceConfirmation);
+    dom.confirmStopButton.addEventListener("click", confirmAttendanceConfirmation);
     dom.clearStoppedSessionsButton.addEventListener("click", clearStoppedSessions);
     dom.playbackSectionList.addEventListener("click", handlePlaybackModalClick);
     dom.continueRecoveredButton.addEventListener("click", continueRecoveredSession);
@@ -407,15 +438,21 @@
       if (!shouldCreate) {
         return;
       }
-      if (isRecorderLive()) {
-        await stopRecording();
+      if (state.session?.startedAt && state.session.status !== "stopped") {
+        const stopped = await requestStopRecording();
+        if (!stopped) {
+          return;
+        }
       }
-    } else if (isRecorderLive()) {
+    } else if (state.session?.startedAt && state.session.status !== "stopped") {
       const shouldStop = window.confirm("A recording is in progress. Stop it and create a new session?");
       if (!shouldStop) {
         return;
       }
-      await stopRecording();
+      const stopped = await requestStopRecording();
+      if (!stopped) {
+        return;
+      }
     }
     await createNewSession({ focusFirstRow: true });
   }
@@ -815,6 +852,82 @@
     }
   }
 
+  async function requestStopRecording() {
+    if (!state.session || state.session.status === "stopped") {
+      return false;
+    }
+
+    const confirmedCount = await requestAttendanceConfirmation();
+    if (confirmedCount === null) {
+      return false;
+    }
+
+    const confirmedAt = new Date().toISOString();
+    state.session.confirmedAttendeeCount = confirmedCount;
+    state.session.confirmedAttendeeCountAt = confirmedAt;
+    state.session.updatedAt = confirmedAt;
+    await putRecord("sessions", state.session);
+    await stopRecording();
+    return true;
+  }
+
+  function requestAttendanceConfirmation() {
+    if (state.attendanceConfirmationResolver) {
+      focusAttendanceModal();
+      return Promise.resolve(null);
+    }
+
+    const attendance = buildAttendanceExport(state.session, state.attendees);
+    const presentCount = attendance.filter((member) => member.status === "present").length;
+    dom.attendanceCountInput.value = String(
+      Number.isInteger(state.session?.confirmedAttendeeCount)
+        ? state.session.confirmedAttendeeCount
+        : presentCount,
+    );
+    dom.attendanceCountHint.textContent = attendance.length > 0
+      ? `Speaker bank: ${presentCount} marked present out of ${attendance.length}.`
+      : "The speaker bank is empty. Enter the total attendance from the meeting.";
+    dom.attendanceModal.hidden = false;
+    dom.attendanceBackdrop.hidden = false;
+    window.requestAnimationFrame(focusAttendanceModal);
+
+    return new Promise((resolve) => {
+      state.attendanceConfirmationResolver = resolve;
+    });
+  }
+
+  function confirmAttendanceConfirmation() {
+    const value = Number(dom.attendanceCountInput.value);
+    if (!Number.isInteger(value) || value < 0) {
+      dom.attendanceCountInput.setCustomValidity("Enter a whole number of zero or more.");
+      dom.attendanceCountInput.reportValidity();
+      return;
+    }
+    dom.attendanceCountInput.setCustomValidity("");
+    finishAttendanceConfirmation(value);
+  }
+
+  function cancelAttendanceConfirmation() {
+    finishAttendanceConfirmation(null);
+  }
+
+  function finishAttendanceConfirmation(value) {
+    const resolve = state.attendanceConfirmationResolver;
+    state.attendanceConfirmationResolver = null;
+    dom.attendanceModal.hidden = true;
+    dom.attendanceBackdrop.hidden = true;
+    if (resolve) {
+      resolve(value);
+    }
+  }
+
+  function focusAttendanceModal() {
+    if (!dom.attendanceModal.hidden) {
+      dom.attendanceCountInput.focus({ preventScroll: true });
+      dom.attendanceCountInput.select();
+    }
+  }
+
   async function saveRecordingCheckpoint(label) {
     if (!state.session || !isRecorderLive()) {
       return false;
@@ -1009,6 +1122,107 @@
     }
   }
 
+  function openAgendaModal() {
+    dom.agendaTextarea.value = "";
+    dom.agendaClosePrompt.hidden = true;
+    dom.agendaModal.hidden = false;
+    dom.agendaBackdrop.hidden = false;
+    updateAgendaImportStatus();
+    window.requestAnimationFrame(() => dom.agendaTextarea.focus({ preventScroll: true }));
+  }
+
+  function parseAgendaLines(value) {
+    return String(value || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
+
+  function updateAgendaImportStatus() {
+    const count = parseAgendaLines(dom.agendaTextarea.value).length;
+    dom.agendaImportStatus.textContent = `${count} section${count === 1 ? "" : "s"} ready`;
+    dom.agendaClosePrompt.hidden = true;
+  }
+
+  function requestCloseAgendaModal() {
+    if (!dom.agendaTextarea.value.trim()) {
+      closeAgendaModal();
+      return;
+    }
+    dom.agendaClosePrompt.hidden = false;
+    dom.keepEditingAgendaButton.focus({ preventScroll: true });
+  }
+
+  function keepEditingAgenda() {
+    dom.agendaClosePrompt.hidden = true;
+    dom.agendaTextarea.focus({ preventScroll: true });
+  }
+
+  function focusAgendaModal() {
+    if (!dom.agendaModal.hidden) {
+      dom.agendaModal.focus({ preventScroll: true });
+    }
+  }
+
+  function closeAgendaModal() {
+    dom.agendaModal.hidden = true;
+    dom.agendaBackdrop.hidden = true;
+    dom.agendaClosePrompt.hidden = true;
+    dom.agendaTextarea.value = "";
+    updateAgendaImportStatus();
+  }
+
+  function canReuseDefaultSection() {
+    if (state.sections.length !== 1) {
+      return false;
+    }
+    const section = state.sections[0];
+    const rows = state.rowsBySection.get(section.id) || [];
+    return !section.title.trim() && rows.every((row) => !hasRowContent(row) && !row.timestampLocked);
+  }
+
+  async function importAgendaSections() {
+    const titles = parseAgendaLines(dom.agendaTextarea.value);
+    if (titles.length === 0) {
+      dom.agendaImportStatus.textContent = "Add at least one agenda item.";
+      dom.agendaTextarea.focus({ preventScroll: true });
+      return;
+    }
+
+    const session = await ensureCurrentSession();
+    if (!session) {
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const pendingTitles = [...titles];
+      if (canReuseDefaultSection()) {
+        const firstSection = state.sections[0];
+        firstSection.title = pendingTitles.shift();
+        await putRecord("sections", firstSection);
+      }
+
+      for (const title of pendingTitles) {
+        const section = buildSection(session.id, state.sections.length, { startedElapsedMs: null });
+        section.title = title;
+        section.startedElapsedMs = null;
+        const row = buildRow(section.id, 0);
+        state.sections.push(section);
+        state.rowsBySection.set(section.id, [row]);
+        await putRecord("sections", section);
+        await putRecord("rows", row);
+      }
+
+      await touchSession();
+      renderSections();
+      setSaveState(`${titles.length} agenda section${titles.length === 1 ? "" : "s"} imported`);
+      closeAgendaModal();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function addRow(sectionId) {
     const rows = state.rowsBySection.get(sectionId) || [];
     const newRow = buildRow(sectionId, rows.length);
@@ -1119,6 +1333,9 @@
       startedAtLabel: session.startedAt ? formatAbsolute(session.startedAt) : "Not recorded",
       exportedAtLabel: formatAbsolute(exportedAt.toISOString()),
       exportedAtIso: exportedAt.toISOString(),
+      confirmedAttendeeCount: Number.isInteger(session.confirmedAttendeeCount)
+        ? session.confirmedAttendeeCount
+        : null,
       attendance,
       sections: sectionExports,
     };
@@ -1144,6 +1361,7 @@
         title: docxData.title,
         sessionStarted: docxData.startedAtLabel,
         exportedAt: docxData.exportedAtLabel,
+        confirmedAttendeeCount: docxData.confirmedAttendeeCount,
         attendance: docxData.attendance.map((item) => ({
           member: item.displayName,
           attendance: capitalizeStatus(item.status),
@@ -1959,7 +2177,7 @@
       row.speaker = target.value;
       target.classList.remove("speaker-input-error");
       target.removeAttribute("aria-invalid");
-      if (event.isTrusted && row.speaker.trim()) {
+      if (row.speaker.trim()) {
         lockRowTimestamp(row);
       }
       renderSpeakerOptions(target);
@@ -1967,6 +2185,9 @@
 
     if (field === "notes") {
       row.notes = target.value;
+      if (row.notes.trim()) {
+        lockRowTimestamp(row);
+      }
       autoResizeTextarea(target);
     }
 
@@ -2330,6 +2551,8 @@
     dom.testMicButton.disabled = state.isBusy || isRecorderLive();
     dom.testMicButton.textContent = micTestActive ? "Stop Test" : "Test Mic";
     dom.pastSessionsButton.disabled = state.isBusy;
+    dom.addSectionButton.disabled = state.isBusy || !hasSession;
+    dom.importAgendaButton.disabled = state.isBusy;
     dom.startButton.disabled = state.isBusy || isRecorderLive() || (!canContinueRecovered && !canStartFresh);
     dom.startButton.textContent = canContinueRecovered ? "Continue" : "Start";
     dom.muteButton.hidden = !hasStarted || isMuted || isStopped;
@@ -2635,7 +2858,6 @@
         </div>
         <div class="section-footer">
           <button type="button" data-action="add-row" data-section-id="${section.id}">Add Row</button>
-          <button class="ghost-button" type="button" data-action="add-section">Add Section</button>
         </div>
       `;
       dom.sectionsContainer.append(article);
@@ -2723,6 +2945,20 @@
   }
 
   function handleGlobalKeyDown(event) {
+    if (!dom.agendaModal.hidden) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        requestCloseAgendaModal();
+      }
+      return;
+    }
+    if (!dom.attendanceModal.hidden) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        cancelAttendanceConfirmation();
+      }
+      return;
+    }
     if (!dom.mutedModal.hidden) {
       if (event.key === "Escape" || event.key === "Tab") {
         event.preventDefault();

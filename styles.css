@@ -165,8 +165,8 @@ select:focus {
 }
 
 .topbar-row {
-  display: flex;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.55rem;
   align-items: flex-start;
 }
@@ -174,7 +174,7 @@ select:focus {
 .topbar-controls {
   display: flex;
   flex: 1 1 auto;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 0.55rem;
   align-items: center;
   min-width: 0;
@@ -938,6 +938,162 @@ select:focus {
   padding: 1rem;
 }
 
+.agenda-modal-backdrop,
+.attendance-modal-backdrop {
+  z-index: 45;
+}
+
+.agenda-modal {
+  position: fixed;
+  inset: 10vh 10vw;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: #fff;
+  box-shadow: 0 28px 70px rgba(33, 24, 17, 0.26);
+  padding: 1.2rem;
+}
+
+.agenda-modal:focus,
+.attendance-confirmation-modal:focus {
+  outline: none;
+}
+
+.agenda-modal-header,
+.agenda-modal-footer,
+.agenda-close-prompt,
+.agenda-close-actions,
+.attendance-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.agenda-modal-header,
+.agenda-close-prompt {
+  justify-content: space-between;
+}
+
+.agenda-modal-header {
+  align-items: flex-start;
+}
+
+.agenda-modal-header h2,
+.agenda-modal-header p,
+.agenda-close-prompt strong,
+.agenda-close-prompt span,
+.attendance-confirmation-modal h2,
+.attendance-confirmation-modal p {
+  margin: 0;
+}
+
+.agenda-modal-header p,
+.attendance-confirmation-modal p,
+.attendance-count-hint {
+  margin-top: 0.2rem;
+  color: var(--muted);
+}
+
+.agenda-modal-example {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.7rem 0.8rem;
+  border-left: 3px solid var(--accent);
+  background: #f7f5f1;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.agenda-modal-example strong {
+  color: var(--ink);
+}
+
+.agenda-textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 12rem;
+  resize: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.35rem;
+  padding: 1rem;
+  color: var(--ink);
+  font-family: var(--font-doc);
+  font-size: 1.08rem;
+  line-height: 1.6;
+}
+
+.agenda-textarea:focus,
+.attendance-count-field input:focus {
+  border-color: var(--accent);
+  outline: 3px solid var(--accent-soft);
+}
+
+.agenda-import-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.agenda-close-prompt {
+  flex-wrap: wrap;
+  border: 1px solid #d3a177;
+  border-radius: 0.45rem;
+  background: #fff8ef;
+  padding: 0.75rem;
+}
+
+.agenda-close-prompt > div:first-child {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.agenda-close-actions {
+  flex-wrap: wrap;
+}
+
+.agenda-modal-footer,
+.attendance-modal-actions {
+  justify-content: flex-end;
+}
+
+.attendance-confirmation-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 50;
+  display: grid;
+  width: min(92vw, 32rem);
+  transform: translate(-50%, -50%);
+  gap: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: #fff;
+  box-shadow: 0 28px 70px rgba(33, 24, 17, 0.26);
+  padding: 1.25rem;
+}
+
+.attendance-count-field {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.attendance-count-field input {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  padding: 0.7rem 0.75rem;
+  font-size: 1.1rem;
+}
+
+.attendance-count-hint {
+  margin-bottom: 0;
+  font-size: 0.86rem;
+}
+
 .playback-modal-header {
   display: flex;
   align-items: flex-start;
@@ -1156,14 +1312,14 @@ select:focus {
   }
 
   .topbar-row {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .topbar-final-actions {
     flex-wrap: wrap;
   }
 
-  .speaker-bank-button {
+.speaker-bank-button {
     margin-left: 0;
     justify-content: center;
   }
@@ -1174,5 +1330,17 @@ select:focus {
 
   .sessions-modal {
     inset: 0.75rem;
+  }
+
+  .agenda-modal {
+    inset: 0.75rem;
+  }
+
+  .agenda-modal-header,
+  .agenda-close-prompt,
+  .agenda-close-actions,
+  .attendance-modal-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

@@ -26,6 +26,8 @@
           <button class="ghost-button" id="testMicButton" type="button">Test Mic</button>
           <button class="ghost-button" id="newSessionButton" type="button">New</button>
           <button class="ghost-button" id="pastSessionsButton" type="button">Past Meetings</button>
+          <button class="ghost-button" id="addSectionButton" type="button">Add Section</button>
+          <button class="ghost-button" id="importAgendaButton" type="button">Import Agenda</button>
           <button id="startButton" type="button">Start</button>
           <button class="mute-toggle-button" id="muteButton" type="button" disabled></button>
           <button class="mute-toggle-button" id="unmuteButton" type="button" disabled></button>
@@ -157,6 +159,54 @@
       <div id="recentSessions" class="recent-sessions-list"></div>
       <div class="sessions-modal-footer">
         <button class="danger-button" id="clearStoppedSessionsButton" type="button">Clear Stopped Meetings</button>
+      </div>
+    </section>
+    <div id="agendaBackdrop" class="modal-backdrop agenda-modal-backdrop" hidden></div>
+    <section id="agendaModal" class="agenda-modal" role="dialog" aria-modal="true" aria-labelledby="agendaModalTitle" tabindex="-1" hidden>
+      <div class="agenda-modal-header">
+        <div>
+          <h2 id="agendaModalTitle">Import Agenda</h2>
+          <p>Paste one agenda item per line. Blank lines are ignored, and each remaining line becomes a section.</p>
+        </div>
+        <button class="ghost-button" id="closeAgendaButton" type="button">Close</button>
+      </div>
+      <div class="agenda-modal-example">
+        <strong>Example</strong>
+        <span>Welcome and introductions</span>
+        <span>Review of previous actions</span>
+        <span>Any other business</span>
+      </div>
+      <textarea id="agendaTextarea" class="agenda-textarea" placeholder="Welcome and introductions&#10;Review of previous actions&#10;Any other business" spellcheck="true"></textarea>
+      <p id="agendaImportStatus" class="agenda-import-status" aria-live="polite">0 sections ready</p>
+      <div id="agendaClosePrompt" class="agenda-close-prompt" role="alert" hidden>
+        <div>
+          <strong>You have an unsaved agenda.</strong>
+          <span>Would you like to import it before closing?</span>
+        </div>
+        <div class="agenda-close-actions">
+          <button id="saveAgendaBeforeCloseButton" type="button">Save &amp; Close</button>
+          <button class="danger-button" id="discardAgendaButton" type="button">Discard</button>
+          <button class="ghost-button" id="keepEditingAgendaButton" type="button">Keep Editing</button>
+        </div>
+      </div>
+      <div class="agenda-modal-footer">
+        <button id="doneAgendaButton" type="button">Done - Import Sections</button>
+      </div>
+    </section>
+    <div id="attendanceBackdrop" class="modal-backdrop attendance-modal-backdrop" hidden></div>
+    <section id="attendanceModal" class="attendance-confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="attendanceModalTitle" tabindex="-1" hidden>
+      <div>
+        <h2 id="attendanceModalTitle">Confirm attendance before stopping</h2>
+        <p>Enter the total number of people who attended this meeting. You can use a number that differs from the current speaker list.</p>
+      </div>
+      <label class="attendance-count-field">
+        <span>People in the meeting</span>
+        <input id="attendanceCountInput" type="number" min="0" step="1" inputmode="numeric">
+      </label>
+      <p id="attendanceCountHint" class="attendance-count-hint"></p>
+      <div class="attendance-modal-actions">
+        <button class="ghost-button" id="cancelStopButton" type="button">Cancel</button>
+        <button id="confirmStopButton" type="button">Confirm &amp; Stop</button>
       </div>
     </section>
     <datalist id="speakerSuggestions"></datalist>

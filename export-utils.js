@@ -221,6 +221,9 @@
   }
 
   function createDocumentXml(exportData) {
+    const confirmedAttendanceXml = Number.isInteger(exportData.confirmedAttendeeCount)
+      ? createParagraphXml(`Confirmed attendees: ${exportData.confirmedAttendeeCount}`, { spacingAfter: 120 })
+      : "";
     const attendanceXml = exportData.attendance && exportData.attendance.length > 0
       ? [
         createParagraphXml("Attendance", { style: "Heading1", spacingAfter: 140 }),
@@ -261,6 +264,7 @@
           ${createParagraphXml(exportData.title || "Meeting Minutes", { style: "Title", spacingAfter: 220 })}
           ${createParagraphXml(`Session started: ${exportData.startedAtLabel}`, { spacingAfter: 80 })}
           ${createParagraphXml(`Exported: ${exportData.exportedAtLabel}`, { spacingAfter: 180 })}
+          ${confirmedAttendanceXml}
           ${attendanceXml}
           ${sectionXml}
           <w:sectPr>
