@@ -116,6 +116,15 @@
     attendanceCountHint: document.getElementById("attendanceCountHint"),
     cancelStopButton: document.getElementById("cancelStopButton"),
     confirmStopButton: document.getElementById("confirmStopButton"),
+    exportBackdrop: document.getElementById("exportBackdrop"),
+    exportModal: document.getElementById("exportModal"),
+    closeExportModalButton: document.getElementById("closeExportModalButton"),
+    exportPasswordInput: document.getElementById("exportPasswordInput"),
+    exportPasswordConfirmInput: document.getElementById("exportPasswordConfirmInput"),
+    exportPasswordStatus: document.getElementById("exportPasswordStatus"),
+    exportWithoutPasswordCheckbox: document.getElementById("exportWithoutPasswordCheckbox"),
+    cancelExportButton: document.getElementById("cancelExportButton"),
+    confirmExportButton: document.getElementById("confirmExportButton"),
   };
 
   window.addEventListener("load", initializeApp);
@@ -155,7 +164,7 @@
     dom.muteButton.addEventListener("click", muteRecording);
     dom.unmuteButton.addEventListener("click", unmuteRecording);
     dom.stopButton.addEventListener("click", requestStopRecording);
-    dom.exportButton.addEventListener("click", exportCurrentSession);
+    dom.exportButton.addEventListener("click", openExportModal);
     dom.playbackButton.addEventListener("click", openPlaybackModal);
     dom.attendeeForm.addEventListener("submit", handleAddAttendee);
     dom.attendeeList.addEventListener("click", handleAttendeeListClick);
@@ -180,6 +189,13 @@
     dom.attendanceBackdrop.addEventListener("click", focusAttendanceModal);
     dom.cancelStopButton.addEventListener("click", cancelAttendanceConfirmation);
     dom.confirmStopButton.addEventListener("click", confirmAttendanceConfirmation);
+    dom.exportBackdrop.addEventListener("click", closeExportModal);
+    dom.closeExportModalButton.addEventListener("click", closeExportModal);
+    dom.cancelExportButton.addEventListener("click", closeExportModal);
+    dom.exportPasswordInput.addEventListener("input", handleExportPasswordInput);
+    dom.exportPasswordConfirmInput.addEventListener("input", handleExportPasswordInput);
+    dom.exportWithoutPasswordCheckbox.addEventListener("change", updateExportModalState);
+    dom.confirmExportButton.addEventListener("click", submitExport);
     dom.clearStoppedSessionsButton.addEventListener("click", clearStoppedSessions);
     dom.playbackSectionList.addEventListener("click", handlePlaybackModalClick);
     dom.continueRecoveredButton.addEventListener("click", continueRecoveredSession);
@@ -1233,7 +1249,90 @@
     appendRowToDom(sectionId, newRow);
   }
 
-  async function exportCurrentSession() {
+  function openExportModal() {
+    if (!state.session || state.session.status !== "stopped") {
+      return;
+    }
+    clearExportPasswordFields();
+    dom.exportWithoutPasswordCheckbox.checked = false;
+    dom.exportModal.hidden = false;
+    dom.exportBackdrop.hidden = false;
+    updateExportModalState();
+    window.requestAnimationFrame(() => dom.exportPasswordInput.focus({ preventScroll: true }));
+  }
+
+  function closeExportModal() {
+    dom.exportModal.hidden = true;
+    dom.exportBackdrop.hidden = true;
+    dom.exportWithoutPasswordCheckbox.checked = false;
+    clearExportPasswordFields();
+    updateExportModalState();
+  }
+
+  function clearExportPasswordFields() {
+    dom.exportPasswordInput.value = "";
+    dom.exportPasswordConfirmInput.value = "";
+  }
+
+  function handleExportPasswordInput() {
+    if (dom.exportPasswordInput.value || dom.exportPasswordConfirmInput.value) {
+      dom.exportWithoutPasswordCheckbox.checked = false;
+    }
+    updateExportModalState();
+  }
+
+  function getExportSelection() {
+    if (dom.exportWithoutPasswordCheckbox.checked) {
+      return { valid: true, password: null };
+    }
+    const password = dom.exportPasswordInput.value;
+    const confirmation = dom.exportPasswordConfirmInput.value;
+    return {
+      valid: Boolean(password) && password === confirmation,
+      password,
+      confirmation,
+    };
+  }
+
+  function updateExportModalState() {
+    const withoutPassword = dom.exportWithoutPasswordCheckbox.checked;
+    if (withoutPassword && (dom.exportPasswordInput.value || dom.exportPasswordConfirmInput.value)) {
+      clearExportPasswordFields();
+    }
+    dom.exportPasswordInput.disabled = withoutPassword;
+    dom.exportPasswordConfirmInput.disabled = withoutPassword;
+
+    const selection = getExportSelection();
+    dom.confirmExportButton.disabled = state.isBusy || !selection.valid;
+    if (withoutPassword) {
+      dom.exportPasswordStatus.textContent = "Unprotected export selected.";
+      return;
+    }
+    if (!selection.password && !selection.confirmation) {
+      dom.exportPasswordStatus.textContent = "Enter the same password twice.";
+      return;
+    }
+    if (!selection.password || !selection.confirmation) {
+      dom.exportPasswordStatus.textContent = "Complete both password fields.";
+      return;
+    }
+    dom.exportPasswordStatus.textContent = selection.valid
+      ? "Passwords match. The ZIP will use AES-256 encryption."
+      : "Passwords do not match.";
+  }
+
+  async function submitExport() {
+    const selection = getExportSelection();
+    if (!selection.valid) {
+      updateExportModalState();
+      return;
+    }
+    const password = selection.password;
+    closeExportModal();
+    await exportCurrentSession(password);
+  }
+
+  async function exportCurrentSession(password) {
     if (!state.session) {
       window.alert("Create or load a session first.");
       return;
@@ -1263,8 +1362,7 @@
         files.push({ name: audioFile.name, data: new Uint8Array(buffer) });
       }
 
-      const bundleBytes = window.MinuteStakerExport.createZip(files);
-      const bundleBlob = new Blob([bundleBytes], { type: "application/zip" });
+      const bundleBlob = await window.MinuteStakerExport.createBundleZip(files, password);
       const fileName = `${sanitizeFileName(exportData.docxData.title || "minutes")}-bundle.zip`;
 
       await putRecord("exports", {
@@ -1276,7 +1374,7 @@
       await refreshRecentSessions();
 
       window.MinuteStakerExport.downloadBlob(bundleBlob, fileName);
-      setSaveState("Exported bundle locally");
+      setSaveState(password ? "Exported AES-256 bundle locally" : "Exported unprotected bundle locally");
     } catch (error) {
       console.error(error);
       setSaveState(`Export failed: ${error.message}`);
@@ -2568,6 +2666,7 @@
     dom.unmuteButton.disabled = state.isBusy || !canUnmute;
     dom.stopButton.disabled = state.isBusy || !canStop;
     dom.exportButton.disabled = state.isBusy || !hasSession || state.session.status !== "stopped";
+    updateExportModalState();
     dom.clearStoppedSessionsButton.disabled = state.isBusy || !state.recentSessions.some((session) => session.status === "stopped");
     dom.markAllPresentButton.disabled = state.isBusy || state.attendees.length === 0;
     dom.muteButton.innerHTML = `${getMicOffIconMarkup()}<span>Mute</span>`;
@@ -2945,6 +3044,13 @@
   }
 
   function handleGlobalKeyDown(event) {
+    if (!dom.exportModal.hidden) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeExportModal();
+      }
+      return;
+    }
     if (!dom.agendaModal.hidden) {
       if (event.key === "Escape") {
         event.preventDefault();

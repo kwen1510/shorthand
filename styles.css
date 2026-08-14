@@ -939,7 +939,8 @@ select:focus {
 }
 
 .agenda-modal-backdrop,
-.attendance-modal-backdrop {
+.attendance-modal-backdrop,
+.export-modal-backdrop {
   z-index: 45;
 }
 
@@ -1074,6 +1075,91 @@ select:focus {
   background: #fff;
   box-shadow: 0 28px 70px rgba(33, 24, 17, 0.26);
   padding: 1.25rem;
+}
+
+.export-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 50;
+  display: grid;
+  width: min(92vw, 34rem);
+  transform: translate(-50%, -50%);
+  gap: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: #fff;
+  box-shadow: 0 28px 70px rgba(33, 24, 17, 0.26);
+  padding: 1.25rem;
+}
+
+.export-modal:focus {
+  outline: none;
+}
+
+.export-modal-header,
+.export-modal-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.export-modal-header h2,
+.export-modal-header p,
+.export-password-status {
+  margin: 0;
+}
+
+.export-modal-header p {
+  margin-top: 0.2rem;
+  color: var(--muted);
+}
+
+.export-password-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.export-password-fields label {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.export-password-status {
+  min-height: 1.2rem;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.export-without-password-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  padding: 0.8rem;
+  cursor: pointer;
+}
+
+.export-without-password-option input {
+  width: auto;
+  margin-top: 0.18rem;
+}
+
+.export-without-password-option span {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.export-without-password-option small {
+  color: var(--muted);
+}
+
+.export-modal-actions {
+  justify-content: flex-end;
 }
 
 .attendance-count-field {
@@ -1339,8 +1425,14 @@ select:focus {
   .agenda-modal-header,
   .agenda-close-prompt,
   .agenda-close-actions,
-  .attendance-modal-actions {
+  .attendance-modal-actions,
+  .export-modal-header,
+  .export-modal-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .export-password-fields {
+    grid-template-columns: 1fr;
   }
 }

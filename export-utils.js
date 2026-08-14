@@ -382,17 +382,46 @@
     });
   }
 
+  async function createBundleZip(files, password) {
+    if (!window.zip) {
+      throw new Error("ZIP encryption library is unavailable.");
+    }
+
+    window.zip.configure({ useWebWorkers: false });
+    const encryptionOptions = password
+      ? { password, encryptionStrength: 3 }
+      : {};
+    const writer = new window.zip.ZipWriter(
+      new window.zip.BlobWriter("application/zip"),
+      encryptionOptions,
+    );
+
+    for (const file of files) {
+      const data = file.data instanceof Uint8Array ? file.data : new Uint8Array(file.data);
+      await writer.add(
+        file.name,
+        new window.zip.Uint8ArrayReader(data),
+        encryptionOptions,
+      );
+    }
+    return writer.close();
+  }
+
   function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = filename;
+    anchor.hidden = true;
+    document.body.append(anchor);
     anchor.click();
+    anchor.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1_000);
   }
 
   window.MinuteStakerExport = {
     createDocxBlob,
+    createBundleZip,
     createZip,
     downloadBlob,
     stringToBytes,

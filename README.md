@@ -48,23 +48,26 @@ Keep real speaker lists local. `members.csv` is intentionally ignored by Git.
 - Shows a playback modal after Stop, with section-by-section playback and active speaker row highlighting
 - Restores interrupted sessions after refresh or reopen
 - Uses agenda sections with `Speaker | Notes` inputs and a grey read-only timestamp rail
+- Imports an agenda by turning each nonblank pasted line into a section
 - Keeps speaker and notes rows locked until `Start` is clicked, with an in-page prompt pointing back to Start
 - Lets you import speakers from CSV, mark each member Present or Absent, and keep adding more speakers manually afterward
 - Keeps speaker entry tied to the speaker list: type a few letters, use ArrowUp/ArrowDown, then press Enter or Tab to select
 - Does not create new speakers from typed note rows; add or import them in Speakers first
 - Groups newly added speakers at the top and allows those manual speakers to be deleted
 - Exports the attendance list with aliases such as `Adrian · HTD`
-- Locks a row timestamp only when the speaker is typed or deliberately selected
+- Locks a row timestamp when the speaker or notes are first typed
 - Auto-adds another blank row when you focus the current final row, so there is always an empty row ready
 - Moves from a notes cell to the next row only when ArrowDown is pressed from the last text line
 - Moves from a speaker cell back to the previous notes cell with ArrowUp when the speaker picker is not active
-- Offers `Add Section` beside `Add Row` inside the document
+- Keeps `Add Section` and `Import Agenda` in the top command bar
 - Lets you drag whole section blocks to reorder them before recording or after stopping
 - Keeps native browser undo/redo behavior in the editable fields
 - Exports `minutes.docx`, `session.json`, `upload-this-to-ai-bots.json`, and one or more `.webm` audio segment files in a ZIP bundle
+- Requires either matching passwords for a local AES-256 ZIP or an explicit unprotected-export choice
 
 ## Notes
 
 - Run on `localhost`, not `file://`
 - This version is designed for Chrome and Edge desktop
+- ZIP encryption uses the locally vendored BSD-3-Clause `zip.js` 2.8.15 library; no password is saved in IndexedDB or session data
 - Recording continues while the window is minimized, but it cannot survive a fully closed tab or browser; recovery resumes in a new segment on reopen
