@@ -2120,7 +2120,7 @@
       return;
     }
     section.title = normalizeSectionTitleValue(section, input.value);
-    input.value = getSectionDisplayTitle(section);
+    input.value = getSectionTitleInputValue(section);
     await putRecord("sections", section);
     await touchSession();
   }
@@ -2248,7 +2248,7 @@
       scheduleSave(`section-${section.id}`, async () => {
         section.title = normalizeSectionTitleValue(section, section.title);
         if (document.activeElement !== target) {
-          target.value = getSectionDisplayTitle(section);
+          target.value = getSectionTitleInputValue(section);
         }
         await putRecord("sections", section);
         await touchSession();
@@ -2964,7 +2964,15 @@
             ${getGripIconMarkup()}
           </button>
           <span class="section-kicker">Section ${section.order + 1}</span>
-          <input class="section-title-input" data-field="section-title" data-section-id="${section.id}" value="${escapeAttribute(getSectionDisplayTitle(section))}" aria-label="Section title">
+          <input
+            class="section-title-input"
+            data-field="section-title"
+            data-section-id="${section.id}"
+            value="${escapeAttribute(getSectionTitleInputValue(section))}"
+            placeholder="${escapeAttribute(getDefaultSectionTitle(section))}"
+            aria-label="Section title"
+            required
+          >
         </div>
         <div class="section-guide">
           <span>Speaker</span>

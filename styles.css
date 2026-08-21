@@ -474,8 +474,18 @@ select:focus {
 }
 
 .section-title-input::placeholder {
-  color: var(--ink);
+  color: #9a5919;
   opacity: 1;
+}
+
+.section-title-input:placeholder-shown {
+  border-bottom-color: #d9771f;
+  box-shadow: 0 5px 8px -6px rgba(217, 119, 31, 0.95);
+}
+
+.section-title-input:placeholder-shown:focus {
+  border-bottom-color: #bf6517;
+  box-shadow: 0 6px 10px -6px rgba(217, 119, 31, 1);
 }
 
 .section-guide {

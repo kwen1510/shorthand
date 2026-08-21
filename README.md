@@ -49,6 +49,7 @@ Keep real speaker lists local. `members.csv` is intentionally ignored by Git.
 - Restores interrupted sessions after refresh or reopen
 - Uses agenda sections with `Speaker | Notes` inputs and a grey read-only timestamp rail
 - Imports an agenda by turning each nonblank pasted line into a section
+- Shows default section names as orange-highlighted placeholders until a real title is entered
 - Keeps speaker and notes rows locked until `Start` is clicked, with an in-page prompt pointing back to Start
 - Lets you import speakers from CSV, mark each member Present or Absent, and keep adding more speakers manually afterward
 - Keeps speaker entry tied to the speaker list: type a few letters, use ArrowUp/ArrowDown, then press Enter or Tab to select
