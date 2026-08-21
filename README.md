@@ -59,6 +59,7 @@ Keep real speaker lists local. `members.csv` is intentionally ignored by Git.
 - Exports the attendance list with aliases such as `Adrian · HTD`
 - Locks a row timestamp when the speaker or notes are first typed
 - Auto-adds another blank row when you focus the current final row, so there is always an empty row ready
+- Lets you delete blank rows while protecting rows that contain a speaker or notes
 - Moves from a notes cell to the next row only when ArrowDown is pressed from the last text line
 - Moves from a speaker cell back to the previous notes cell with ArrowUp when the speaker picker is not active
 - Keeps `Add Section` and `Import Agenda` in the top command bar

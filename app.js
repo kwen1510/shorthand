@@ -1249,6 +1249,38 @@
     appendRowToDom(sectionId, newRow);
   }
 
+  async function deleteEmptyRow(sectionId, rowId) {
+    const rows = state.rowsBySection.get(sectionId) || [];
+    const rowIndex = rows.findIndex((row) => row.id === rowId);
+    const row = rows[rowIndex];
+    if (!row || hasRowContent(row)) {
+      return;
+    }
+
+    const saveKey = `row-${row.id}`;
+    const pendingSave = state.pendingSaves.get(saveKey);
+    if (pendingSave) {
+      window.clearTimeout(pendingSave);
+      state.pendingSaves.delete(saveKey);
+    }
+
+    rows.splice(rowIndex, 1);
+    state.rowsBySection.set(sectionId, rows);
+    dom.sectionsContainer.querySelector(`[data-minute-row-id="${cssEscape(row.id)}"]`)?.remove();
+    await deleteRecord("rows", row.id);
+
+    for (const [order, remainingRow] of rows.entries()) {
+      if (remainingRow.order === order) {
+        continue;
+      }
+      remainingRow.order = order;
+      await putRecord("rows", remainingRow);
+    }
+
+    await touchSession();
+    setSaveState("Deleted blank row");
+  }
+
   function openExportModal() {
     if (!state.session || state.session.status !== "stopped") {
       return;
@@ -1912,6 +1944,11 @@
       return;
     }
 
+    if (action === "delete-row") {
+      void deleteEmptyRow(actionTarget.dataset.sectionId, actionTarget.dataset.rowId);
+      return;
+    }
+
     if (action === "add-section") {
       void addSection();
       return;
@@ -2291,6 +2328,8 @@
       autoResizeTextarea(target);
     }
 
+    updateRowDeleteControl(sectionId, row);
+
     row.updatedAt = new Date().toISOString();
     void maybeAppendTrailingRow(sectionId, row.id, { requireContent: true });
     scheduleSave(`row-${row.id}`, async () => {
@@ -2374,6 +2413,15 @@
       chip.textContent = label;
     }
     element.classList.toggle("pending", !locked);
+  }
+
+  function updateRowDeleteControl(sectionId, row) {
+    const button = dom.sectionsContainer.querySelector(
+      `[data-action="delete-row"][data-section-id="${cssEscape(sectionId)}"][data-row-id="${cssEscape(row.id)}"]`,
+    );
+    if (button) {
+      button.hidden = hasRowContent(row);
+    }
   }
 
   function lockRowTimestamp(row) {
@@ -3024,6 +3072,15 @@
         </div>
         <div class="timestamp-rail ${row.timestampLocked ? "" : "pending"}" data-mobile-label="Timestamp" data-timestamp-for="${row.id}">
           <span class="timestamp-chip">${escapeHtml(row.timestampLocked ? formatElapsed(row.elapsedMs) : "Pending")}</span>
+          <button
+            type="button"
+            class="row-delete-button"
+            data-action="delete-row"
+            data-section-id="${sectionId}"
+            data-row-id="${row.id}"
+            aria-label="Delete blank row"
+            ${hasRowContent(row) ? "hidden" : ""}
+          >Delete row</button>
         </div>
       </div>
     `;

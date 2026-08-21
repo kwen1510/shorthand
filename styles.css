@@ -673,8 +673,10 @@ select:focus {
 
 .timestamp-rail {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: flex-end;
+  gap: 0.2rem;
   min-height: 3rem;
   color: #8d877f;
   font-size: 0.88rem;
@@ -688,11 +690,28 @@ select:focus {
 
 .timestamp-chip {
   display: inline-flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: center;
   min-width: 5rem;
   padding: 0.35rem 0.45rem;
   border-radius: 999px;
   background: #eeebe6;
+  text-align: center;
+}
+
+.row-delete-button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.15rem 0.25rem;
+  font-size: 0.72rem;
+  text-decoration: underline;
+  text-underline-offset: 0.15rem;
+}
+
+.row-delete-button:hover:not(:disabled) {
+  color: #a3342b;
+  filter: none;
 }
 
 .section-footer {
