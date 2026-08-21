@@ -97,6 +97,7 @@
     continueRecoveredButton: document.getElementById("continueRecoveredButton"),
     dismissRestoreButton: document.getElementById("dismissRestoreButton"),
     workspaceHeading: document.getElementById("workspaceHeading"),
+    editMeetingTitleButton: document.getElementById("editMeetingTitleButton"),
     emptyState: document.getElementById("emptyState"),
     sectionsContainer: document.getElementById("sectionsContainer"),
     speakerSuggestions: document.getElementById("speakerSuggestions"),
@@ -214,6 +215,7 @@
     dom.workspaceHeading.addEventListener("input", handleWorkspaceTitleInput);
     dom.workspaceHeading.addEventListener("blur", handleWorkspaceTitleBlur);
     dom.workspaceHeading.addEventListener("keydown", handleWorkspaceTitleKeyDown);
+    dom.editMeetingTitleButton.addEventListener("click", focusMeetingTitle);
     dom.sessionTitleInput.addEventListener("input", async (event) => {
       await updateSessionTitleFromInput(event.target.value, event.target);
     });
@@ -1249,20 +1251,19 @@
     appendRowToDom(sectionId, newRow);
   }
 
-  async function deleteEmptyRow(sectionId, rowId) {
+  async function deleteRow(sectionId, rowId) {
     const rows = state.rowsBySection.get(sectionId) || [];
     const rowIndex = rows.findIndex((row) => row.id === rowId);
     const row = rows[rowIndex];
-    if (!row || hasRowContent(row)) {
+    if (!row || rows.length <= 1) {
       return;
     }
 
-    const saveKey = `row-${row.id}`;
-    const pendingSave = state.pendingSaves.get(saveKey);
-    if (pendingSave) {
-      window.clearTimeout(pendingSave);
-      state.pendingSaves.delete(saveKey);
+    if (hasRowContent(row) && !window.confirm("This row contains text. Are you sure you want to delete it?")) {
+      return;
     }
+
+    cancelPendingSave(`row-${row.id}`);
 
     rows.splice(rowIndex, 1);
     state.rowsBySection.set(sectionId, rows);
@@ -1278,7 +1279,46 @@
     }
 
     await touchSession();
-    setSaveState("Deleted blank row");
+    updateSectionRowDeleteControls(sectionId);
+    setSaveState("Deleted row");
+  }
+
+  async function deleteSection(sectionId) {
+    if (state.sections.length <= 1) {
+      return;
+    }
+    const sectionIndex = state.sections.findIndex((section) => section.id === sectionId);
+    const section = state.sections[sectionIndex];
+    if (!section) {
+      return;
+    }
+
+    const rows = state.rowsBySection.get(sectionId) || [];
+    const hasContent = Boolean((section.title || "").trim()) || rows.some(hasRowContent);
+    if (hasContent && !window.confirm("This section contains text. Are you sure you want to delete the whole section?")) {
+      return;
+    }
+
+    cancelPendingSave(`section-${section.id}`);
+    for (const row of rows) {
+      cancelPendingSave(`row-${row.id}`);
+      await deleteRecord("rows", row.id);
+    }
+    await deleteRecord("sections", section.id);
+    state.sections.splice(sectionIndex, 1);
+    state.rowsBySection.delete(section.id);
+
+    for (const [order, remainingSection] of state.sections.entries()) {
+      if (remainingSection.order === order) {
+        continue;
+      }
+      remainingSection.order = order;
+      await putRecord("sections", remainingSection);
+    }
+
+    await touchSession();
+    renderSections();
+    setSaveState("Deleted section");
   }
 
   function openExportModal() {
@@ -1908,6 +1948,15 @@
     dom.workspaceHeading.blur();
   }
 
+  function focusMeetingTitle() {
+    dom.workspaceHeading.focus();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(dom.workspaceHeading);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
   async function updateSessionTitleFromInput(value, sourceElement) {
     if (!state.session) {
       await createNewSession({ focusFirstRow: false });
@@ -1945,7 +1994,12 @@
     }
 
     if (action === "delete-row") {
-      void deleteEmptyRow(actionTarget.dataset.sectionId, actionTarget.dataset.rowId);
+      void deleteRow(actionTarget.dataset.sectionId, actionTarget.dataset.rowId);
+      return;
+    }
+
+    if (action === "delete-section") {
+      void deleteSection(actionTarget.dataset.sectionId);
       return;
     }
 
@@ -2401,6 +2455,7 @@
     if (textarea) {
       autoResizeTextarea(textarea);
     }
+    updateSectionRowDeleteControls(sectionId);
   }
 
   function updateRowTimestampDisplay(rowId, label, locked) {
@@ -2420,8 +2475,17 @@
       `[data-action="delete-row"][data-section-id="${cssEscape(sectionId)}"][data-row-id="${cssEscape(row.id)}"]`,
     );
     if (button) {
-      button.hidden = hasRowContent(row);
+      const rows = state.rowsBySection.get(sectionId) || [];
+      const canDelete = rows.length > 1;
+      button.disabled = !canDelete;
+      button.title = canDelete ? "Delete row" : "At least one row is required";
+      button.setAttribute("aria-label", canDelete ? "Delete row" : "Cannot delete the only row");
     }
+  }
+
+  function updateSectionRowDeleteControls(sectionId) {
+    const rows = state.rowsBySection.get(sectionId) || [];
+    rows.forEach((row) => updateRowDeleteControl(sectionId, row));
   }
 
   function lockRowTimestamp(row) {
@@ -2469,6 +2533,15 @@
       setSaveState("Saved locally");
     }, SAVE_DEBOUNCE_MS);
     state.pendingSaves.set(key, timeoutId);
+  }
+
+  function cancelPendingSave(key) {
+    const pendingSave = state.pendingSaves.get(key);
+    if (!pendingSave) {
+      return;
+    }
+    window.clearTimeout(pendingSave);
+    state.pendingSaves.delete(key);
   }
 
   async function touchSession() {
@@ -2671,6 +2744,8 @@
     syncDocumentTitle();
     dom.workspaceHeading.contentEditable = state.session ? "true" : "false";
     dom.workspaceHeading.setAttribute("aria-label", state.session ? "Meeting title" : "Workspace title");
+    dom.workspaceHeading.title = state.session ? "Click to edit the meeting name" : "";
+    dom.editMeetingTitleButton.hidden = !state.session;
     if (document.activeElement !== dom.sessionTitleInput) {
       dom.sessionTitleInput.value = state.session?.title || "";
     }
@@ -3021,6 +3096,15 @@
             aria-label="Section title"
             required
           >
+          <button
+            type="button"
+            class="section-delete-button"
+            data-action="delete-section"
+            data-section-id="${section.id}"
+            aria-label="${state.sections.length > 1 ? "Delete section" : "Cannot delete the only section"}"
+            title="${state.sections.length > 1 ? "Delete section" : "At least one section is required"}"
+            ${state.sections.length > 1 ? "" : "disabled"}
+          >Delete section</button>
         </div>
         <div class="section-guide">
           <span>Speaker</span>
@@ -3044,6 +3128,7 @@
     const locked = isMinutesEntryLocked();
     const lockAttributes = locked ? 'readonly aria-readonly="true" aria-describedby="startRequiredMessage"' : "";
     const needsSpeaker = Boolean((row.notes || "").trim() && !(row.speaker || "").trim());
+    const canDelete = (state.rowsBySection.get(sectionId) || []).length > 1;
     return `
       <div class="minute-row ${locked ? "minute-row-locked" : ""}" data-minute-row-id="${row.id}" data-row-elapsed-ms="${row.elapsedMs ?? ""}">
         <div class="speaker-cell" data-mobile-label="Speaker">
@@ -3078,8 +3163,9 @@
             data-action="delete-row"
             data-section-id="${sectionId}"
             data-row-id="${row.id}"
-            aria-label="Delete blank row"
-            ${hasRowContent(row) ? "hidden" : ""}
+            aria-label="${canDelete ? "Delete row" : "Cannot delete the only row"}"
+            title="${canDelete ? "Delete row" : "At least one row is required"}"
+            ${canDelete ? "" : "disabled"}
           >Delete row</button>
         </div>
       </div>

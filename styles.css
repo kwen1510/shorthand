@@ -353,8 +353,13 @@ select:focus {
   padding: 2.8rem 3rem 4rem;
 }
 
+.document-title-group {
+  margin-bottom: 1.6rem;
+}
+
 .document-title {
-  margin: 0 0 1.6rem;
+  display: inline;
+  margin: 0;
   font-family: var(--font-doc);
   font-size: 1.8rem;
   font-weight: 600;
@@ -362,11 +367,31 @@ select:focus {
 
 .document-title[contenteditable="true"] {
   cursor: text;
+  text-decoration: underline;
+  text-decoration-color: rgba(33, 95, 89, 0.28);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
 }
 
 .document-title[contenteditable="true"]:focus {
   outline: none;
   box-shadow: inset 0 -2px 0 rgba(33, 95, 89, 0.28);
+}
+
+.edit-meeting-title-button {
+  display: block;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  padding: 0.3rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.15rem;
+}
+
+.edit-meeting-title-button:hover:not(:disabled) {
+  filter: none;
 }
 
 .empty-state {
@@ -454,6 +479,21 @@ select:focus {
   font-size: 0.88rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.section-delete-button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.25rem 0;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  text-underline-offset: 0.15rem;
+}
+
+.section-delete-button:hover:not(:disabled) {
+  color: #a3342b;
+  filter: none;
 }
 
 .section-title-input {
