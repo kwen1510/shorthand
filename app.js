@@ -2278,6 +2278,7 @@
       if (row.speaker.trim()) {
         lockRowTimestamp(row);
       }
+      updateMissingSpeakerPrompt(sectionId, row);
       renderSpeakerOptions(target);
     }
 
@@ -2286,6 +2287,7 @@
       if (row.notes.trim()) {
         lockRowTimestamp(row);
       }
+      updateMissingSpeakerPrompt(sectionId, row);
       autoResizeTextarea(target);
     }
 
@@ -2388,6 +2390,23 @@
     const rows = state.rowsBySection.get(input.dataset.sectionId) || [];
     const row = rows.find((item) => item.id === input.dataset.rowId);
     lockRowTimestamp(row);
+  }
+
+  function updateMissingSpeakerPrompt(sectionId, row) {
+    if (!row) {
+      return;
+    }
+    const input = findRowField(sectionId, row.id, "speaker");
+    if (!input) {
+      return;
+    }
+    const needsSpeaker = Boolean((row.notes || "").trim() && !(row.speaker || "").trim());
+    input.classList.toggle("speaker-input-needed", needsSpeaker);
+    if (needsSpeaker) {
+      input.title = "Choose who was speaking";
+    } else {
+      input.removeAttribute("title");
+    }
   }
 
   function scheduleSave(key, callback) {
@@ -2968,16 +2987,18 @@
   function createRowMarkup(sectionId, row) {
     const locked = isMinutesEntryLocked();
     const lockAttributes = locked ? 'readonly aria-readonly="true" aria-describedby="startRequiredMessage"' : "";
+    const needsSpeaker = Boolean((row.notes || "").trim() && !(row.speaker || "").trim());
     return `
       <div class="minute-row ${locked ? "minute-row-locked" : ""}" data-minute-row-id="${row.id}" data-row-elapsed-ms="${row.elapsedMs ?? ""}">
         <div class="speaker-cell">
           <input
-            class="table-input"
+            class="table-input ${needsSpeaker ? "speaker-input-needed" : ""}"
             data-field="speaker"
             data-section-id="${sectionId}"
             data-row-id="${row.id}"
             value="${escapeAttribute(row.speaker || "")}"
             placeholder="Speaker"
+            ${needsSpeaker ? 'title="Choose who was speaking"' : ""}
             autocomplete="off"
             ${lockAttributes}
           >
