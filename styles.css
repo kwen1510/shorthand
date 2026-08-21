@@ -576,6 +576,10 @@ select:focus {
   min-width: 0;
 }
 
+.notes-cell {
+  min-width: 0;
+}
+
 .table-input,
 .table-textarea {
   border: none;
@@ -1350,16 +1354,53 @@ select:focus {
     padding: 1.7rem 1.2rem 2.4rem;
   }
 
-  .section-guide,
-  .minute-row {
-    grid-template-columns: 1fr;
-    gap: 0.2rem;
+  .section-guide {
+    display: none;
   }
 
-  .section-guide .timestamp-guide,
+  .minute-row {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+    padding: 0.7rem 0;
+  }
+
+  .speaker-cell,
+  .notes-cell {
+    display: grid;
+    min-width: 0;
+    max-width: 100%;
+    gap: 0.1rem;
+  }
+
+  .speaker-cell::before,
+  .notes-cell::before,
+  .timestamp-rail::before {
+    content: attr(data-mobile-label);
+    color: var(--muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
   .timestamp-rail {
-    justify-content: flex-start;
-    text-align: left;
+    display: grid;
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
+    justify-content: stretch;
+    justify-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0 0.35rem;
+    text-align: center;
+  }
+
+  .timestamp-rail::before {
+    text-align: center;
+  }
+
+  .timestamp-chip {
+    max-width: 100%;
+    justify-content: center;
   }
 
   .playback-row {
@@ -1379,6 +1420,24 @@ select:focus {
 
   .workspace {
     padding: 1rem 0.65rem 1.5rem;
+  }
+
+  .document-page {
+    width: 100%;
+    padding: 1.4rem 1rem 2.2rem;
+  }
+
+  .document-title {
+    overflow-wrap: anywhere;
+    font-size: 1.55rem;
+  }
+
+  .section-topline,
+  .section-title-input,
+  .table-input,
+  .table-textarea {
+    min-width: 0;
+    max-width: 100%;
   }
 
   .restore-banner {

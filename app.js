@@ -2998,7 +2998,7 @@
     const needsSpeaker = Boolean((row.notes || "").trim() && !(row.speaker || "").trim());
     return `
       <div class="minute-row ${locked ? "minute-row-locked" : ""}" data-minute-row-id="${row.id}" data-row-elapsed-ms="${row.elapsedMs ?? ""}">
-        <div class="speaker-cell">
+        <div class="speaker-cell" data-mobile-label="Speaker">
           <input
             class="table-input ${needsSpeaker ? "speaker-input-needed" : ""}"
             data-field="speaker"
@@ -3012,15 +3012,17 @@
           >
           <div class="speaker-options" data-speaker-options-for="${row.id}" hidden></div>
         </div>
-        <textarea
-          class="table-textarea"
-          data-field="notes"
-          data-section-id="${sectionId}"
-          data-row-id="${row.id}"
-          placeholder="Type shorthand notes here"
-          ${lockAttributes}
-        >${escapeHtml(row.notes || "")}</textarea>
-        <div class="timestamp-rail ${row.timestampLocked ? "" : "pending"}" data-timestamp-for="${row.id}">
+        <div class="notes-cell" data-mobile-label="Notes">
+          <textarea
+            class="table-textarea"
+            data-field="notes"
+            data-section-id="${sectionId}"
+            data-row-id="${row.id}"
+            placeholder="Type shorthand notes here"
+            ${lockAttributes}
+          >${escapeHtml(row.notes || "")}</textarea>
+        </div>
+        <div class="timestamp-rail ${row.timestampLocked ? "" : "pending"}" data-mobile-label="Timestamp" data-timestamp-for="${row.id}">
           <span class="timestamp-chip">${escapeHtml(row.timestampLocked ? formatElapsed(row.elapsedMs) : "Pending")}</span>
         </div>
       </div>
