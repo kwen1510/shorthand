@@ -7,6 +7,7 @@
   const SAVE_DEBOUNCE_MS = 240;
   const HEARTBEAT_MS = 2000;
   const SUPPORTED_BROWSER_PATTERN = /(Chrome|Edg)\//;
+  const QUICK_GUIDE_SEEN_KEY = "shorthand.quickGuideSeen.v1";
   const BUILT_IN_MIC_PATTERN = /(built.?in|internal|macbook|microphone array|realtek|intel.*smart sound|default)/i;
   const EXTERNAL_MIC_PATTERN = /(airpods|bluetooth|external|headset|jabra|logitech|plantronics|poly|rode|sennheiser|shure|snowball|sony|usb|wireless|yeti)/i;
 
@@ -106,7 +107,7 @@
     quickGuideTitle: document.getElementById("quickGuideTitle"),
     quickGuideBody: document.getElementById("quickGuideBody"),
     quickGuideActions: document.getElementById("quickGuideActions"),
-    closeQuickGuideButton: document.getElementById("closeQuickGuideButton"),
+    skipQuickGuideButton: document.getElementById("skipQuickGuideButton"),
     emptyState: document.getElementById("emptyState"),
     sectionsContainer: document.getElementById("sectionsContainer"),
     speakerSuggestions: document.getElementById("speakerSuggestions"),
@@ -151,9 +152,10 @@
       await restoreMostRecentSession();
       if (!state.session) {
         await createNewSession({ focusFirstRow: true });
-        return;
+      } else {
+        render();
       }
-      render();
+      openQuickGuideForFirstVisit();
     } catch (error) {
       console.error(error);
       setSaveState("Initialization failed");
@@ -227,7 +229,7 @@
     dom.editMeetingTitleButton.addEventListener("click", focusMeetingTitle);
     dom.quickGuide.addEventListener("toggle", handleQuickGuideToggle);
     dom.quickGuideActions.addEventListener("click", handleQuickGuideAction);
-    dom.closeQuickGuideButton.addEventListener("click", closeQuickGuide);
+    dom.skipQuickGuideButton.addEventListener("click", finishQuickGuide);
     dom.sessionTitleInput.addEventListener("input", async (event) => {
       await updateSessionTitleFromInput(event.target.value, event.target);
     });
@@ -252,6 +254,31 @@
   function closeQuickGuide() {
     dom.quickGuide.open = false;
     clearGuideTarget();
+  }
+
+  function openQuickGuideForFirstVisit() {
+    try {
+      if (window.localStorage.getItem(QUICK_GUIDE_SEEN_KEY) === "true") {
+        return;
+      }
+    } catch (error) {
+      console.warn("Tutorial preference could not be read", error);
+    }
+    state.guideStep = 0;
+    dom.quickGuide.open = true;
+  }
+
+  function finishQuickGuide() {
+    try {
+      window.localStorage.setItem(QUICK_GUIDE_SEEN_KEY, "true");
+    } catch (error) {
+      console.warn("Tutorial preference could not be saved", error);
+    }
+    if (!dom.speakerDrawer.hidden) {
+      closeSpeakerDrawer();
+    }
+    state.guideStep = 0;
+    closeQuickGuide();
   }
 
   function setGuideStep(step) {
@@ -319,7 +346,7 @@
       return;
     }
     if (action === "close") {
-      closeQuickGuide();
+      finishQuickGuide();
       return;
     }
     if (action === "open-speakers") {
