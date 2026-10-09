@@ -562,8 +562,8 @@ select:focus {
 }
 
 .section-topline {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.8rem;
   padding-top: 0.2rem;
@@ -607,8 +607,8 @@ select:focus {
 }
 
 .section-title-input {
-  flex: 1 1 auto;
-  min-width: 8rem;
+  width: 100%;
+  min-width: 0;
   border: none;
   border-bottom: 1px solid var(--line);
   border-radius: 0;
