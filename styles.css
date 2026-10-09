@@ -464,7 +464,7 @@ select:focus {
 
 .quick-guide-panel {
   position: fixed;
-  z-index: 70;
+  z-index: 90;
   left: 1.25rem;
   bottom: 1.25rem;
   width: min(23rem, calc(100vw - 2.5rem));
@@ -529,22 +529,12 @@ select:focus {
 
 .quick-guide-target {
   position: relative;
-  z-index: 71;
+  z-index: 80;
   outline: 3px solid #d87720 !important;
   outline-offset: 4px;
-  box-shadow: 0 0 0 7px rgba(216, 119, 32, 0.18) !important;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .quick-guide-target {
-    animation: quick-guide-pulse 1.8s ease-in-out infinite;
-  }
-}
-
-@keyframes quick-guide-pulse {
-  50% {
-    box-shadow: 0 0 0 11px rgba(216, 119, 32, 0.08);
-  }
+  box-shadow:
+    0 0 0 7px rgba(216, 119, 32, 0.24),
+    0 0 0 9999px rgba(35, 32, 28, 0.62) !important;
 }
 
 .empty-state {
