@@ -212,6 +212,7 @@
     dom.sectionsContainer.addEventListener("dragover", handleSectionDragOver);
     dom.sectionsContainer.addEventListener("drop", handleSectionDrop);
     dom.sectionsContainer.addEventListener("dragend", handleSectionDragEnd);
+    document.addEventListener("pointerdown", handleDocumentPointerDown);
     dom.workspaceHeading.addEventListener("input", handleWorkspaceTitleInput);
     dom.workspaceHeading.addEventListener("blur", handleWorkspaceTitleBlur);
     dom.workspaceHeading.addEventListener("keydown", handleWorkspaceTitleKeyDown);
@@ -2003,6 +2004,16 @@
       return;
     }
 
+    if (action === "move-section-up") {
+      void moveSectionByOffset(actionTarget.dataset.sectionId, -1);
+      return;
+    }
+
+    if (action === "move-section-down") {
+      void moveSectionByOffset(actionTarget.dataset.sectionId, 1);
+      return;
+    }
+
     if (action === "add-section") {
       void addSection();
       return;
@@ -2048,6 +2059,49 @@
     window.setTimeout(() => {
       state.speakerOptionPointerActive = false;
     }, 500);
+  }
+
+  function handleDocumentPointerDown(event) {
+    const clickedInsideSpeaker = event.target instanceof Element && event.target.closest(".speaker-cell");
+    if (clickedInsideSpeaker) {
+      return;
+    }
+    const activeSpeaker = document.activeElement;
+    if (activeSpeaker instanceof HTMLInputElement && activeSpeaker.dataset.field === "speaker") {
+      cancelUncommittedSpeakerInput(activeSpeaker);
+    }
+    hideSpeakerOptions();
+  }
+
+  function cancelUncommittedSpeakerInput(input) {
+    if (!input.value.trim() || getExactSpeakerMatch(input.value)) {
+      return;
+    }
+
+    const rows = state.rowsBySection.get(input.dataset.sectionId) || [];
+    const row = rows.find((item) => item.id === input.dataset.rowId);
+    if (!row) {
+      return;
+    }
+
+    const restoredValue = input.dataset.initialSpeakerValue || "";
+    input.value = restoredValue;
+    row.speaker = restoredValue;
+    if (input.dataset.initialTimestampLocked !== "true" && !row.notes.trim()) {
+      row.timestampLocked = false;
+      row.elapsedMs = null;
+      row.wallClockIso = null;
+      updateRowTimestampDisplay(row.id, "Pending", false);
+    }
+    input.classList.remove("speaker-input-error");
+    input.removeAttribute("aria-invalid");
+    updateMissingSpeakerPrompt(input.dataset.sectionId, row);
+    updateRowDeleteControl(input.dataset.sectionId, row);
+    row.updatedAt = new Date().toISOString();
+    scheduleSave(`row-${row.id}`, async () => {
+      await putRecord("rows", row);
+      await touchSession();
+    });
   }
 
   function handleSectionDragStart(event) {
@@ -2156,6 +2210,23 @@
     setSaveState("Reordered sections");
   }
 
+  async function moveSectionByOffset(sectionId, offset) {
+    if (!canReorderSections()) {
+      return;
+    }
+    const currentIndex = state.sections.findIndex((section) => section.id === sectionId);
+    const targetIndex = currentIndex + offset;
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= state.sections.length) {
+      return;
+    }
+
+    const [section] = state.sections.splice(currentIndex, 1);
+    state.sections.splice(targetIndex, 0, section);
+    await persistSectionOrder();
+    renderSections();
+    setSaveState("Reordered sections");
+  }
+
   async function persistSectionOrder() {
     for (const [index, section] of state.sections.entries()) {
       if (section.order === index) {
@@ -2184,6 +2255,10 @@
 
     void maybeAppendTrailingRow(sectionId, rowId, { requireContent: false });
     if (field === "speaker") {
+      target.dataset.initialSpeakerValue = target.value;
+      const rows = state.rowsBySection.get(sectionId) || [];
+      const row = rows.find((item) => item.id === rowId);
+      target.dataset.initialTimestampLocked = String(Boolean(row?.timestampLocked));
       renderSpeakerOptions(target);
     }
   }
@@ -3067,7 +3142,7 @@
       `);
     }
 
-    state.sections.forEach((section) => {
+    state.sections.forEach((section, sectionIndex) => {
       const rows = state.rowsBySection.get(section.id) || [];
       const article = document.createElement("article");
       article.className = "section-card";
@@ -3086,7 +3161,26 @@
           >
             ${getGripIconMarkup()}
           </button>
-          <span class="section-kicker">Section ${section.order + 1}</span>
+          <div class="section-move-actions" aria-label="Reorder section">
+            <button
+              type="button"
+              class="section-move-button"
+              data-action="move-section-up"
+              data-section-id="${section.id}"
+              aria-label="Move ${escapeAttribute(getDefaultSectionTitle(section))} up"
+              title="Move section up"
+              ${canDragSections && sectionIndex > 0 ? "" : "disabled"}
+            >Up</button>
+            <button
+              type="button"
+              class="section-move-button"
+              data-action="move-section-down"
+              data-section-id="${section.id}"
+              aria-label="Move ${escapeAttribute(getDefaultSectionTitle(section))} down"
+              title="Move section down"
+              ${canDragSections && sectionIndex < state.sections.length - 1 ? "" : "disabled"}
+            >Down</button>
+          </div>
           <input
             class="section-title-input"
             data-field="section-title"
@@ -3108,7 +3202,7 @@
         </div>
         <div class="section-guide">
           <span>Speaker</span>
-          <span>Notes</span>
+          <span class="notes-guide">Notes <small>Use “Action by: Name” for follow-ups</small></span>
           <span class="timestamp-guide">Timestamp</span>
         </div>
         <div class="rows-list" data-section-rows="${section.id}">
@@ -3116,6 +3210,7 @@
         </div>
         <div class="section-footer">
           <button type="button" data-action="add-row" data-section-id="${section.id}">Add Row</button>
+          <button class="ghost-button" type="button" data-action="add-section">Add Section</button>
         </div>
       `;
       dom.sectionsContainer.append(article);
@@ -3145,13 +3240,13 @@
           >
           <div class="speaker-options" data-speaker-options-for="${row.id}" hidden></div>
         </div>
-        <div class="notes-cell" data-mobile-label="Notes">
+        <div class="notes-cell" data-mobile-label="Notes · use “Action by: Name” for follow-ups">
           <textarea
             class="table-textarea"
             data-field="notes"
             data-section-id="${sectionId}"
             data-row-id="${row.id}"
-            placeholder="Type shorthand notes here"
+            placeholder="Type notes; use “Action by: Name” for follow-ups"
             ${lockAttributes}
           >${escapeHtml(row.notes || "")}</textarea>
         </div>
@@ -3500,13 +3595,13 @@
   }
 
   function canReorderSections() {
-    if (!state.session || state.sections.length < 2 || state.isBusy || isRecorderLive()) {
+    if (!state.session || state.sections.length < 2 || state.isBusy) {
       return false;
     }
     if (state.playbackAudio && !state.playbackAudio.paused) {
       return false;
     }
-    return state.session.status === "draft" || state.session.status === "stopped";
+    return true;
   }
 
   function currentSessionHasData() {
