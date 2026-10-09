@@ -271,7 +271,7 @@
         title: "Add speakers",
         body: hasSpeakers
           ? "Your speaker list is ready. Continue when you are happy with it."
-          : "Open Speakers, then upload a CSV or add a person manually. You can skip this and add speakers later.",
+          : "Open Speakers, then upload a CSV or add a person manually. Add at least one speaker to continue.",
         actions: hasSpeakers
           ? '<button type="button" data-guide-action="next">Continue</button><button class="ghost-button" type="button" data-guide-action="open-speakers">Review speakers</button>'
           : '<button type="button" data-guide-action="open-speakers">Open Speakers</button><button class="ghost-button" type="button" data-guide-action="upload-speakers">Upload CSV</button>',
