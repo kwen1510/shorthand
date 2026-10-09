@@ -63,6 +63,7 @@ Keep real speaker lists local. `members.csv` is intentionally ignored by Git.
 - Includes a compact first-time guide and in-context “Action by” notation guidance
 - Lets you delete extra rows and sections, confirms populated deletions, and always preserves one row per section plus one section per meeting
 - Adds section controls beside the minutes so sections can be created and reordered while recording
+- Places line-by-line section-name import beside the row and section controls
 - Closes the speaker picker when the user clicks elsewhere
 - Moves from a notes cell to the next row only when ArrowDown is pressed from the last text line
 - Moves from a speaker cell back to the previous notes cell with ArrowUp when the speaker picker is not active

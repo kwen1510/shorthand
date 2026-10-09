@@ -2019,6 +2019,11 @@
       return;
     }
 
+    if (action === "import-section-names") {
+      openAgendaModal();
+      return;
+    }
+
     if (action === "start-session") {
       void handleStartButton();
       return;
@@ -3211,6 +3216,7 @@
         <div class="section-footer">
           <button type="button" data-action="add-row" data-section-id="${section.id}">Add Row</button>
           <button class="ghost-button" type="button" data-action="add-section">Add Section</button>
+          <button class="ghost-button" type="button" data-action="import-section-names">Import Section Names</button>
         </div>
       `;
       dom.sectionsContainer.append(article);
