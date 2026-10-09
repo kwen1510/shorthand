@@ -2004,16 +2004,6 @@
       return;
     }
 
-    if (action === "move-section-up") {
-      void moveSectionByOffset(actionTarget.dataset.sectionId, -1);
-      return;
-    }
-
-    if (action === "move-section-down") {
-      void moveSectionByOffset(actionTarget.dataset.sectionId, 1);
-      return;
-    }
-
     if (action === "add-section") {
       void addSection();
       return;
@@ -2212,23 +2202,6 @@
     if (!dom.playbackModal.hidden) {
       renderPlaybackModal();
     }
-    setSaveState("Reordered sections");
-  }
-
-  async function moveSectionByOffset(sectionId, offset) {
-    if (!canReorderSections()) {
-      return;
-    }
-    const currentIndex = state.sections.findIndex((section) => section.id === sectionId);
-    const targetIndex = currentIndex + offset;
-    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= state.sections.length) {
-      return;
-    }
-
-    const [section] = state.sections.splice(currentIndex, 1);
-    state.sections.splice(targetIndex, 0, section);
-    await persistSectionOrder();
-    renderSections();
     setSaveState("Reordered sections");
   }
 
@@ -3147,7 +3120,7 @@
       `);
     }
 
-    state.sections.forEach((section, sectionIndex) => {
+    state.sections.forEach((section) => {
       const rows = state.rowsBySection.get(section.id) || [];
       const article = document.createElement("article");
       article.className = "section-card";
@@ -3160,32 +3133,12 @@
             draggable="${canDragSections ? "true" : "false"}"
             data-section-drag-handle
             data-section-id="${escapeAttribute(section.id)}"
-            aria-label="Move ${escapeAttribute(getDefaultSectionTitle(section))}"
-            title="Move section"
+            aria-label="Drag ${escapeAttribute(getDefaultSectionTitle(section))} to reorder"
+            title="Drag to reorder sections"
             ${canDragSections ? "" : "disabled"}
           >
             ${getGripIconMarkup()}
           </button>
-          <div class="section-move-actions" aria-label="Reorder section">
-            <button
-              type="button"
-              class="section-move-button"
-              data-action="move-section-up"
-              data-section-id="${section.id}"
-              aria-label="Move ${escapeAttribute(getDefaultSectionTitle(section))} up"
-              title="Move section up"
-              ${canDragSections && sectionIndex > 0 ? "" : "disabled"}
-            >Up</button>
-            <button
-              type="button"
-              class="section-move-button"
-              data-action="move-section-down"
-              data-section-id="${section.id}"
-              aria-label="Move ${escapeAttribute(getDefaultSectionTitle(section))} down"
-              title="Move section down"
-              ${canDragSections && sectionIndex < state.sections.length - 1 ? "" : "disabled"}
-            >Down</button>
-          </div>
           <input
             class="section-title-input"
             data-field="section-title"

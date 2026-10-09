@@ -493,24 +493,6 @@ select:focus {
   cursor: not-allowed;
 }
 
-.section-move-actions {
-  display: inline-flex;
-  gap: 0.2rem;
-}
-
-.section-move-button {
-  border-color: var(--line);
-  background: #fff;
-  color: var(--muted);
-  padding: 0.3rem 0.45rem;
-  font-size: 0.72rem;
-}
-
-.section-move-button:hover:not(:disabled) {
-  border-color: var(--line-strong);
-  color: var(--ink);
-}
-
 .section-delete-button {
   border: 0;
   background: transparent;
