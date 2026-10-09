@@ -402,16 +402,114 @@ select:focus {
 }
 
 .quick-guide summary {
+  display: inline-flex;
   width: fit-content;
+  align-items: center;
+  gap: 0.42rem;
   color: var(--accent);
   cursor: pointer;
   font-weight: 600;
+  list-style: none;
 }
 
-.quick-guide ol {
-  margin: 0.55rem 0 0;
-  padding-left: 1.25rem;
-  line-height: 1.55;
+.quick-guide summary::-webkit-details-marker {
+  display: none;
+}
+
+.quick-guide-icon {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.quick-guide-panel {
+  position: fixed;
+  z-index: 70;
+  left: 1.25rem;
+  bottom: 1.25rem;
+  width: min(23rem, calc(100vw - 2.5rem));
+  max-height: calc(100vh - 2.5rem);
+  overflow: auto;
+  padding: 1rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: 0.85rem;
+  box-shadow: 0 18px 50px rgba(56, 43, 33, 0.2);
+}
+
+.quick-guide-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.quick-guide-progress {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.quick-guide-close {
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  font-size: 0.76rem;
+  text-decoration: underline;
+  text-underline-offset: 0.16rem;
+}
+
+.quick-guide-panel h2 {
+  margin: 0.65rem 0 0.35rem;
+  font-family: var(--font-doc);
+  font-size: 1.35rem;
+}
+
+.quick-guide-panel p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.quick-guide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.quick-guide-actions button {
+  min-height: 2.35rem;
+}
+
+.quick-guide-target {
+  position: relative;
+  z-index: 71;
+  outline: 3px solid #d87720 !important;
+  outline-offset: 4px;
+  box-shadow: 0 0 0 7px rgba(216, 119, 32, 0.18) !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .quick-guide-target {
+    animation: quick-guide-pulse 1.8s ease-in-out infinite;
+  }
+}
+
+@keyframes quick-guide-pulse {
+  50% {
+    box-shadow: 0 0 0 11px rgba(216, 119, 32, 0.08);
+  }
 }
 
 .empty-state {
@@ -1494,6 +1592,23 @@ select:focus {
 }
 
 @media (max-width: 640px) {
+  .quick-guide-panel {
+    right: 0.75rem;
+    bottom: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+    max-height: min(22rem, calc(100vh - 1.5rem));
+  }
+
+  .quick-guide-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .quick-guide-actions button {
+    width: 100%;
+  }
+
   .topbar {
     padding: 0.8rem 0.75rem 0.65rem;
   }

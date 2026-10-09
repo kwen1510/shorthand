@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Shorthand</title>
-    <link rel="stylesheet" href="styles.css?v=20261009-3">
+    <link rel="stylesheet" href="styles.css?v=20261009-4">
   </head>
   <body>
     <header class="topbar">
@@ -90,14 +90,24 @@
           <button id="editMeetingTitleButton" class="edit-meeting-title-button" type="button" hidden>
             Edit meeting name
           </button>
-          <details class="quick-guide">
-            <summary>First time? Open the quick guide</summary>
-            <ol>
-              <li>Edit the meeting name.</li>
-              <li>Add or import speakers, then click Start.</li>
-              <li>Type the speaker and notes. Use “Action by: Name” for follow-ups.</li>
-              <li>Add, reorder, or delete rows and sections as needed.</li>
-            </ol>
+          <details id="quickGuide" class="quick-guide">
+            <summary>
+              <svg class="quick-guide-icon" aria-hidden="true" viewBox="0 0 24 24">
+                <circle cx="6" cy="19" r="3"></circle>
+                <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"></path>
+                <circle cx="18" cy="5" r="3"></circle>
+              </svg>
+              <span>First time? Open the quick guide</span>
+            </summary>
+            <div class="quick-guide-panel" role="dialog" aria-labelledby="quickGuideTitle" aria-live="polite">
+              <div class="quick-guide-panel-header">
+                <span id="quickGuideProgress" class="quick-guide-progress"></span>
+                <button id="closeQuickGuideButton" class="quick-guide-close" type="button">Close</button>
+              </div>
+              <h2 id="quickGuideTitle"></h2>
+              <p id="quickGuideBody"></p>
+              <div id="quickGuideActions" class="quick-guide-actions"></div>
+            </div>
           </details>
         </div>
 
@@ -256,6 +266,6 @@
 
     <script src="vendor/zip.min.js?v=20260821-2"></script>
     <script src="export-utils.js?v=20260821-2"></script>
-    <script src="app.js?v=20261009-3"></script>
+    <script src="app.js?v=20261009-4"></script>
   </body>
 </html>

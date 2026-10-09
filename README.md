@@ -60,7 +60,7 @@ Keep real speaker lists local. `members.csv` is intentionally ignored by Git.
 - Locks a row timestamp when the speaker or notes are first typed
 - Auto-adds another blank row when you focus the current final row, so there is always an empty row ready
 - Keeps the meeting name visibly editable from the document heading
-- Includes a compact first-time guide and in-context “Action by” notation guidance
+- Includes an interactive first-time guide that leads teachers through speakers, sections, naming, recording, notes, and export
 - Lets you delete extra rows and sections, confirms populated deletions, and always preserves one row per section plus one section per meeting
 - Keeps the section grip draggable while recording and places section creation beside the minutes
 - Places line-by-line section-name import beside the row and section controls

@@ -42,6 +42,7 @@
     playbackSectionId: null,
     playbackStopAtSeconds: null,
     attendanceConfirmationResolver: null,
+    guideStep: 0,
   };
 
   const dom = {
@@ -98,6 +99,12 @@
     dismissRestoreButton: document.getElementById("dismissRestoreButton"),
     workspaceHeading: document.getElementById("workspaceHeading"),
     editMeetingTitleButton: document.getElementById("editMeetingTitleButton"),
+    quickGuide: document.getElementById("quickGuide"),
+    quickGuideProgress: document.getElementById("quickGuideProgress"),
+    quickGuideTitle: document.getElementById("quickGuideTitle"),
+    quickGuideBody: document.getElementById("quickGuideBody"),
+    quickGuideActions: document.getElementById("quickGuideActions"),
+    closeQuickGuideButton: document.getElementById("closeQuickGuideButton"),
     emptyState: document.getElementById("emptyState"),
     sectionsContainer: document.getElementById("sectionsContainer"),
     speakerSuggestions: document.getElementById("speakerSuggestions"),
@@ -217,6 +224,9 @@
     dom.workspaceHeading.addEventListener("blur", handleWorkspaceTitleBlur);
     dom.workspaceHeading.addEventListener("keydown", handleWorkspaceTitleKeyDown);
     dom.editMeetingTitleButton.addEventListener("click", focusMeetingTitle);
+    dom.quickGuide.addEventListener("toggle", handleQuickGuideToggle);
+    dom.quickGuideActions.addEventListener("click", handleQuickGuideAction);
+    dom.closeQuickGuideButton.addEventListener("click", closeQuickGuide);
     dom.sessionTitleInput.addEventListener("input", async (event) => {
       await updateSessionTitleFromInput(event.target.value, event.target);
     });
@@ -227,6 +237,160 @@
     navigator.mediaDevices?.addEventListener?.("devicechange", () => {
       void refreshAudioInputs();
     });
+  }
+
+  async function handleQuickGuideToggle() {
+    if (!dom.quickGuide.open) {
+      clearGuideTarget();
+      return;
+    }
+    if (!state.session || state.session.status === "stopped") {
+      await createNewSession({ focusFirstRow: false });
+    }
+    renderQuickGuide();
+  }
+
+  function closeQuickGuide() {
+    dom.quickGuide.open = false;
+    clearGuideTarget();
+  }
+
+  function setGuideStep(step) {
+    state.guideStep = Math.max(0, Math.min(3, step));
+    renderQuickGuide();
+  }
+
+  function renderQuickGuide() {
+    if (!dom.quickGuide.open) {
+      return;
+    }
+
+    const hasSpeakers = state.attendees.length > 0;
+    const steps = [
+      {
+        title: "Add speakers",
+        body: hasSpeakers
+          ? "Your speaker list is ready. Continue when you are happy with it."
+          : "Open Speakers, then upload a CSV or add a person manually. You can skip this and add speakers later.",
+        actions: hasSpeakers
+          ? '<button type="button" data-guide-action="next">Continue</button><button class="ghost-button" type="button" data-guide-action="open-speakers">Review speakers</button>'
+          : '<button type="button" data-guide-action="open-speakers">Open Speakers</button><button class="ghost-button" type="button" data-guide-action="upload-speakers">Upload CSV</button>',
+        target: !dom.speakerDrawer.hidden ? dom.importSpeakersButton : dom.speakerBankToggle,
+      },
+      {
+        title: "Set up sections",
+        body: "Import all section names with one name per line, add sections one at a time, or continue without changing them.",
+        actions: '<button type="button" data-guide-action="import-sections">Import all</button><button class="ghost-button" type="button" data-guide-action="add-section">Add one section</button><button class="ghost-button" type="button" data-guide-action="next">Continue</button>',
+        target: dom.sectionsContainer.querySelector('[data-action="import-section-names"]') || dom.importAgendaButton,
+      },
+      {
+        title: "Name and start the meeting",
+        body: "Edit the meeting name if needed, then click the real Start button. The guide moves on when recording begins.",
+        actions: '<button type="button" data-guide-action="edit-title">Edit meeting name</button><button class="ghost-button" type="button" data-guide-action="focus-start">Go to Start</button>',
+        target: dom.startButton,
+      },
+      {
+        title: "Capture and finish",
+        body: "Choose a speaker and type notes; the timestamp locks automatically. Use “Action by: Name” for follow-ups. When finished, Stop, confirm attendance, then Export.",
+        actions: '<button type="button" data-guide-action="focus-notes">Go to the first row</button><button class="ghost-button" type="button" data-guide-action="close">Finish guide</button>',
+        target: dom.sectionsContainer.querySelector('[data-field="speaker"]'),
+      },
+    ];
+
+    const step = steps[state.guideStep];
+    dom.quickGuideProgress.textContent = `Step ${state.guideStep + 1} of ${steps.length}`;
+    dom.quickGuideTitle.textContent = step.title;
+    dom.quickGuideBody.textContent = step.body;
+    dom.quickGuideActions.innerHTML = step.actions;
+    highlightGuideTarget(step.target);
+  }
+
+  function handleQuickGuideAction(event) {
+    const button = event.target.closest("[data-guide-action]");
+    if (!button) {
+      return;
+    }
+
+    const action = button.dataset.guideAction;
+    if (action === "next") {
+      if (state.guideStep === 0 && !dom.speakerDrawer.hidden) {
+        closeSpeakerDrawer();
+      }
+      setGuideStep(state.guideStep + 1);
+      return;
+    }
+    if (action === "close") {
+      closeQuickGuide();
+      return;
+    }
+    if (action === "open-speakers") {
+      openSpeakerDrawer();
+      renderQuickGuide();
+      return;
+    }
+    if (action === "upload-speakers") {
+      openSpeakerDrawer();
+      dom.speakerCsvInput.click();
+      renderQuickGuide();
+      return;
+    }
+    if (action === "import-sections") {
+      closeQuickGuide();
+      state.guideStep = 1;
+      openAgendaModal();
+      return;
+    }
+    if (action === "add-section") {
+      void addSection({ focus: false }).then(renderQuickGuide);
+      return;
+    }
+    if (action === "edit-title") {
+      focusMeetingTitle();
+      highlightGuideTarget(dom.workspaceHeading);
+      return;
+    }
+    if (action === "focus-start") {
+      focusGuideControl(dom.startButton);
+      return;
+    }
+    if (action === "focus-notes") {
+      const firstSpeaker = dom.sectionsContainer.querySelector('[data-field="speaker"]');
+      focusGuideControl(firstSpeaker);
+    }
+  }
+
+  function focusGuideControl(element) {
+    if (!element) {
+      return;
+    }
+    highlightGuideTarget(element);
+    window.requestAnimationFrame(() => element.focus({ preventScroll: true }));
+  }
+
+  function highlightGuideTarget(element) {
+    clearGuideTarget();
+    if (!element) {
+      return;
+    }
+    element.classList.add("quick-guide-target");
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function clearGuideTarget() {
+    document.querySelectorAll(".quick-guide-target").forEach((element) => {
+      element.classList.remove("quick-guide-target");
+    });
+  }
+
+  function syncQuickGuideProgress() {
+    if (!dom.quickGuide.open) {
+      return;
+    }
+    if (state.guideStep === 2 && isRecorderLive()) {
+      setGuideStep(3);
+      return;
+    }
+    renderQuickGuide();
   }
 
   function isSupportedEnvironment() {
@@ -799,6 +963,7 @@
       setSaveState("Recording locally");
       await refreshRecentSessions();
       render();
+      syncQuickGuideProgress();
     } catch (error) {
       console.error(error);
       setSaveState(`Microphone error: ${error.message}`);
@@ -1237,6 +1402,10 @@
       renderSections();
       setSaveState(`${titles.length} agenda section${titles.length === 1 ? "" : "s"} imported`);
       closeAgendaModal();
+      if (state.guideStep === 1) {
+        dom.quickGuide.open = true;
+        setGuideStep(2);
+      }
     } finally {
       setBusy(false);
     }
@@ -1732,6 +1901,9 @@
 
     await touchSession();
     renderAttendees();
+    if (dom.quickGuide.open && state.guideStep === 0) {
+      renderQuickGuide();
+    }
   }
 
   async function markAllAttendeesPresent() {
