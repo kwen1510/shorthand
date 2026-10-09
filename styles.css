@@ -187,6 +187,41 @@ select:focus {
   align-items: center;
 }
 
+.meeting-navigation {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 0.12rem;
+  padding: 0.18rem;
+  border: 1px solid #bfd1cf;
+  border-radius: 0.65rem;
+  background: #edf5f4;
+}
+
+.meeting-navigation button {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.meeting-navigation button:hover:not(:disabled) {
+  background: rgba(33, 95, 89, 0.09);
+  filter: none;
+}
+
+.meeting-navigation.session-ended {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.meeting-navigation.session-ended button {
+  color: #fff;
+}
+
+.meeting-navigation.session-ended button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+}
+
 .topbar-controls > button,
 .topbar-final-actions > button {
   flex: 0 0 auto;
@@ -650,14 +685,6 @@ select:focus {
 
 .section-guide .timestamp-guide {
   text-align: right;
-}
-
-.notes-guide small {
-  color: #918980;
-  font-size: 0.68rem;
-  font-weight: 400;
-  letter-spacing: 0;
-  text-transform: none;
 }
 
 .start-required-message {

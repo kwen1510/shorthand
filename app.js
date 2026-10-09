@@ -7,6 +7,8 @@
   const SAVE_DEBOUNCE_MS = 240;
   const HEARTBEAT_MS = 2000;
   const SUPPORTED_BROWSER_PATTERN = /(Chrome|Edg)\//;
+  const BUILT_IN_MIC_PATTERN = /(built.?in|internal|macbook|microphone array|realtek|intel.*smart sound|default)/i;
+  const EXTERNAL_MIC_PATTERN = /(airpods|bluetooth|external|headset|jabra|logitech|plantronics|poly|rode|sennheiser|shure|snowball|sony|usb|wireless|yeti)/i;
 
   const state = {
     db: null,
@@ -66,9 +68,9 @@
     stopButton: document.getElementById("stopButton"),
     exportButton: document.getElementById("exportButton"),
     playbackButton: document.getElementById("playbackButton"),
+    meetingNavigation: document.getElementById("meetingNavigation"),
     newSessionButton: document.getElementById("newSessionButton"),
     pastSessionsButton: document.getElementById("pastSessionsButton"),
-    addSectionButton: document.getElementById("addSectionButton"),
     importAgendaButton: document.getElementById("importAgendaButton"),
     attendeeForm: document.getElementById("attendeeForm"),
     attendeeNameInput: document.getElementById("attendeeNameInput"),
@@ -166,7 +168,6 @@
     dom.closeMicTestButton.addEventListener("click", stopMicTest);
     dom.newSessionButton.addEventListener("click", handleCreateNewSession);
     dom.pastSessionsButton.addEventListener("click", openSessionsModal);
-    dom.addSectionButton.addEventListener("click", () => void addSection());
     dom.importAgendaButton.addEventListener("click", openAgendaModal);
     dom.startButton.addEventListener("click", handleStartButton);
     dom.muteButton.addEventListener("click", muteRecording);
@@ -234,9 +235,7 @@
     window.addEventListener("pagehide", flushRecorderChunk);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     document.addEventListener("keydown", handleGlobalKeyDown);
-    navigator.mediaDevices?.addEventListener?.("devicechange", () => {
-      void refreshAudioInputs();
-    });
+    navigator.mediaDevices?.addEventListener?.("devicechange", () => void handleAudioDevicesChanged());
   }
 
   async function handleQuickGuideToggle() {
@@ -291,7 +290,7 @@
       },
       {
         title: "Capture and finish",
-        body: "Choose a speaker and type notes; the timestamp locks automatically. Use “Action by: Name” for follow-ups. When finished, Stop, confirm attendance, then Export.",
+        body: "Choose a speaker and type notes; the timestamp locks automatically. For follow-ups, include who owns the action so it can be extracted later. Suggested format: “Action by: Name”. When finished, Stop, confirm attendance, then Export.",
         actions: '<button type="button" data-guide-action="focus-notes">Go to the first row</button><button class="ghost-button" type="button" data-guide-action="close">Finish guide</button>',
         target: dom.sectionsContainer.querySelector('[data-field="speaker"]'),
       },
@@ -886,9 +885,8 @@
       if (reuseExistingStream && state.mediaStream && state.mediaStream.getAudioTracks().some((track) => track.readyState === "live")) {
         stream = state.mediaStream;
       } else {
-        stream = await requestAudioStream();
+        stream = await requestPreferredAudioStream();
         state.mediaStream = stream;
-        await refreshAudioInputs();
       }
 
       const mimeType = pickMimeType();
@@ -1181,6 +1179,14 @@
     void restartMicTest();
   }
 
+  async function handleAudioDevicesChanged() {
+    const previousValue = dom.audioSourceSelect.value;
+    await refreshAudioInputs();
+    if (state.micTestStream && dom.audioSourceSelect.value !== previousValue) {
+      await restartMicTest();
+    }
+  }
+
   async function toggleMicTest() {
     if (state.micTestStream) {
       stopMicTest();
@@ -1206,7 +1212,7 @@
     }
 
     try {
-      const stream = await requestAudioStream();
+      const stream = await requestPreferredAudioStream();
       state.micTestStream = stream;
       const audioContext = new AudioContextClass();
       const source = audioContext.createMediaStreamSource(stream);
@@ -2832,9 +2838,54 @@
       dom.audioSourceSelect.add(new Option(label, device.deviceId));
     });
 
-    dom.audioSourceSelect.value = selectedValue && [...dom.audioSourceSelect.options].some((option) => option.value === selectedValue)
+    const shouldKeepActiveRecordingInput = isRecorderLive()
+      && audioInputs.some((device) => device.deviceId === selectedValue);
+    dom.audioSourceSelect.value = shouldKeepActiveRecordingInput
       ? selectedValue
-      : dom.audioSourceSelect.options[0].value;
+      : getPreferredAudioInputId(audioInputs, selectedValue);
+  }
+
+  function getPreferredAudioInputId(audioInputs, selectedValue) {
+    const selectedDevice = audioInputs.find((device) => device.deviceId === selectedValue);
+    const externalInputs = audioInputs.filter(isExternalAudioInput);
+    if (externalInputs.length > 0) {
+      return selectedDevice && isExternalAudioInput(selectedDevice)
+        ? selectedDevice.deviceId
+        : externalInputs[0].deviceId;
+    }
+
+    const builtInInput = audioInputs.find(isBuiltInAudioInput);
+    return builtInInput?.deviceId || selectedDevice?.deviceId || audioInputs[0].deviceId;
+  }
+
+  function isExternalAudioInput(device) {
+    const label = (device.label || "").trim();
+    if (!label) {
+      return false;
+    }
+    return EXTERNAL_MIC_PATTERN.test(label) || !isBuiltInAudioInput(device);
+  }
+
+  function isBuiltInAudioInput(device) {
+    return BUILT_IN_MIC_PATTERN.test(device.label || "");
+  }
+
+  async function requestPreferredAudioStream() {
+    const requestedId = dom.audioSourceSelect.value;
+    let stream = await requestAudioStream();
+    await refreshAudioInputs();
+
+    const preferredId = dom.audioSourceSelect.value;
+    const activeId = stream.getAudioTracks()[0]?.getSettings?.().deviceId || requestedId;
+    const shouldReopen = preferredId && preferredId !== "default"
+      && (preferredId !== requestedId || (activeId && preferredId !== activeId));
+    if (!shouldReopen) {
+      return stream;
+    }
+
+    stream.getTracks().forEach((track) => track.stop());
+    stream = await requestAudioStream();
+    return stream;
   }
 
   function pickMimeType() {
@@ -3015,15 +3066,18 @@
 
     dom.testMicButton.disabled = state.isBusy || isRecorderLive();
     dom.testMicButton.textContent = micTestActive ? "Stop Test" : "Test Mic";
+    dom.newSessionButton.disabled = state.isBusy;
     dom.pastSessionsButton.disabled = state.isBusy;
-    dom.addSectionButton.disabled = state.isBusy || !hasSession;
+    dom.meetingNavigation.classList.toggle("session-ended", isStopped);
+    dom.importAgendaButton.hidden = isStopped;
     dom.importAgendaButton.disabled = state.isBusy;
+    dom.startButton.hidden = isStopped;
     dom.startButton.disabled = state.isBusy || isRecorderLive() || (!canContinueRecovered && !canStartFresh);
     dom.startButton.textContent = canContinueRecovered ? "Continue" : "Start";
     dom.muteButton.hidden = !hasStarted || isMuted || isStopped;
     dom.unmuteButton.hidden = !hasStarted || !isMuted || isStopped;
     dom.muteModeLabel.hidden = !isMuted;
-    dom.stopButton.hidden = !hasStarted;
+    dom.stopButton.hidden = !hasStarted || isStopped;
     dom.playbackButton.hidden = !isStopped;
     dom.playbackButton.disabled = state.isBusy || !isStopped;
     if (!isStopped && !dom.playbackModal.hidden) {
@@ -3332,7 +3386,7 @@
         </div>
         <div class="section-guide">
           <span>Speaker</span>
-          <span class="notes-guide">Notes <small>Use “Action by: Name” for follow-ups</small></span>
+          <span class="notes-guide">Notes</span>
           <span class="timestamp-guide">Timestamp</span>
         </div>
         <div class="rows-list" data-section-rows="${section.id}">
@@ -3371,13 +3425,13 @@
           >
           <div class="speaker-options" data-speaker-options-for="${row.id}" hidden></div>
         </div>
-        <div class="notes-cell" data-mobile-label="Notes · use “Action by: Name” for follow-ups">
+        <div class="notes-cell" data-mobile-label="Notes">
           <textarea
             class="table-textarea"
             data-field="notes"
             data-section-id="${sectionId}"
             data-row-id="${row.id}"
-            placeholder="Type notes; use “Action by: Name” for follow-ups"
+            placeholder="Type notes"
             ${lockAttributes}
           >${escapeHtml(row.notes || "")}</textarea>
         </div>

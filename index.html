@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Shorthand</title>
-    <link rel="stylesheet" href="styles.css?v=20261009-6">
+    <link rel="stylesheet" href="styles.css?v=20261009-7">
   </head>
   <body>
     <header class="topbar">
@@ -24,9 +24,10 @@
           <input id="sessionTitleInput" class="session-title-field" type="text" placeholder="Untitled meeting">
           <select id="audioSourceSelect" class="compact-select" aria-label="Audio input"></select>
           <button class="ghost-button" id="testMicButton" type="button">Test Mic</button>
-          <button class="ghost-button" id="newSessionButton" type="button">New</button>
-          <button class="ghost-button" id="pastSessionsButton" type="button">Past Meetings</button>
-          <button class="ghost-button" id="addSectionButton" type="button">Add Section</button>
+          <div id="meetingNavigation" class="meeting-navigation" aria-label="Meeting navigation">
+            <button id="newSessionButton" type="button">New</button>
+            <button id="pastSessionsButton" type="button">Past Meetings</button>
+          </div>
           <button class="ghost-button" id="importAgendaButton" type="button">Import Agenda</button>
           <button id="startButton" type="button">Start</button>
           <button class="mute-toggle-button" id="muteButton" type="button" disabled></button>
@@ -266,6 +267,6 @@
 
     <script src="vendor/zip.min.js?v=20260821-2"></script>
     <script src="export-utils.js?v=20260821-2"></script>
-    <script src="app.js?v=20261009-5"></script>
+    <script src="app.js?v=20261009-7"></script>
   </body>
 </html>
